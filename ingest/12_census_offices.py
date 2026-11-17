@@ -8,6 +8,15 @@ Needs CENSUS_API_KEY. Set OFFICE_ACS_YEARS in .env (comma-separated) to change
 the vintages (default 2020-2024). Output: one row per office x year x level,
 keyed by firm + office_name, with state_fips / county_fips / tract_fips join keys.
 """
+# TODO (still to do before this script produces output):
+#   1. Add real offices to data/manual/big4_offices.csv (it only has the EXAMPLE row).
+#   2. Put CENSUS_API_KEY in your own .env (the key is not committed).
+#   3. Run it and report row counts, null shares and spot-checks (Austin 12420, New York
+#      35620, Chicago 16980) per CLAUDE.md. Not yet run against the live Census API.
+#   4. Check the 2020/2021 vintages: tract boundaries changed in 2020, so some offices may
+#      error for older years (they are logged and skipped, not fatal).
+#   5. Join acs_offices into zip_features / metro_features (see TODO in build_tables.py).
+
 import os
 import sys
 

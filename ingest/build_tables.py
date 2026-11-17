@@ -57,6 +57,10 @@ def main():
     for name in ["acs_cbsa", "bea_rpp_cbsa", "bls_accountant_wages_cbsa"]:
         m = join(m, load(name), "cbsa_code")
     m = join(m, crime_by_metro(), "cbsa_code")
+    # TODO: join acs_offices (from 12_census_offices.py) here. It is long-format
+    #   (office x acs_year x level), so first pick the latest acs_year and level="tract",
+    #   then aggregate per cbsa_code (needs cbsa_code on each office; it is a column in
+    #   data/manual/big4_offices.csv) or join on county_fips.
     save(m, "metro_features")
 
 
