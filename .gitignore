@@ -1,4 +1,8 @@
 .env
+.venv/
 __pycache__/
 *.pyc
-.venv/
+*.part
+.DS_Store
+data/raw/*
+!data/raw/.gitkeep
