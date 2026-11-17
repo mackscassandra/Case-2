@@ -62,3 +62,19 @@ Census Bureau, BEA, BLS, FBI, FEMA, EPA (public domain); Zillow Research; © Ope
 ## Census API helper
 
 `census/client.py` (with `example.py`) is a small general-purpose client for ad-hoc Census Data API queries. The pipeline's `ingest/02_census_acs.py` pulls the ACS tables the app needs; use the client for quick exploration.
+
+## Notes (from the API User Guide)
+- Max 50 variables per query; a key is required on every request (`&key=...`).
+- Use `group(TABLE)` to get all variables in a table.
+
+## Office-location lookup
+Give an office address (or lat/lon) and get ACS 5-Year demographics for its census **tract**, **county** and **state**, for each of the five most recent vintages (2020-2024 by default; change with `--years`):
+
+```bash
+python office.py "110 Inner Campus Dr, Austin, TX 78712"
+python office.py --lat 30.2849 --lon -97.7341 --years 2020 2021 2022 2023 2024
+```
+
+Or from Python: `from census import office_profile; office_profile(address="...")`.
+
+Steps: the free [Census Geocoder](https://geocoding.geo.census.gov/) turns the location into state/county/tract FIPS codes, then the Census Data API returns population, median age, household income, home value, rent, unemployment rate and bachelor's-or-higher share. Edit `VARIABLES` in `census/office.py` to pull other variables.
