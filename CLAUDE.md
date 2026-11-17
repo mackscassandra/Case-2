@@ -7,6 +7,7 @@ Recommend a Big 4 firm × office × service line, a metro and a neighborhood (ZI
 - `ingest/` — one script per data source, numbered in run order; `common.py` has shared helpers (`download`, `get_json`, `save`, `api_key`).
 - `ingest/build_tables.py` — joins everything into `zip_features` and `metro_features`.
 - `data/raw/` — downloads (git-ignored). `data/processed/` — Parquet outputs (committed). `data/manual/` — hand-entered CSVs.
+- `census/` + `office.py` — standalone Census client and office-location lookup (`ingest/12_census_offices.py` uses it).
 - `app/` — Streamlit app (to be built).
 
 ## Join keys (always strings, zero-padded)
