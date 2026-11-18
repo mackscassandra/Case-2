@@ -6,7 +6,7 @@ state and media results). Cross-check against MIT Election Data + Science Lab
 """
 import pandas as pd
 
-from common import RAW, download, save, zfill_fips
+from common import PROCESSED, RAW, download, save, zfill_fips
 
 URL = ("https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/"
        "master/2024_US_County_Level_Presidential_Results.csv")
@@ -24,6 +24,10 @@ def main():
     out["margin_dem_minus_gop"] = out["pct_dem"] - out["pct_gop"]
     out["election_year"] = 2024
     save(out, "elections_county")
+    # CSV copy so the table can be browsed and searched on GitHub
+    names = df[["county_fips", "county_name", "state_name"]].assign(county_fips=out["county_fips"])
+    view = names.merge(out, on="county_fips").round(4)
+    view.to_csv(PROCESSED / "elections_county.csv", index=False)
 
 
 if __name__ == "__main__":
