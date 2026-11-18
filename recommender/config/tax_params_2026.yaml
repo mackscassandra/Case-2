@@ -1,0 +1,30 @@
+# Federal tax parameters for tax year 2026, single filer.
+# Every number below was checked against the cited source on 2026-11-18.
+# When 2027 figures are published, copy this file to tax_params_2027.yaml and update it.
+tax_year: 2026
+filing_status: single
+
+standard_deduction: 16100
+# Source: IRS IR-2025-103 / Rev. Proc. 2025-32
+# https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill
+
+# Each bracket: rate applies to taxable income above `over`.
+brackets:
+  - {over: 0,      rate: 0.10}
+  - {over: 12400,  rate: 0.12}
+  - {over: 50400,  rate: 0.22}
+  - {over: 105700, rate: 0.24}
+  - {over: 201775, rate: 0.32}
+  - {over: 256225, rate: 0.35}
+  - {over: 640600, rate: 0.37}
+# Source: same IRS release as above.
+
+social_security_rate: 0.062
+social_security_wage_base: 184500
+# Source: SSA, Cost-of-Living Increase and Other Determinations for 2026 (Federal Register, Nov 3, 2025)
+# https://www.govinfo.gov/content/pkg/FR-2025-11-03/pdf/2025-19763.pdf
+
+medicare_rate: 0.0145
+additional_medicare_rate: 0.009
+additional_medicare_threshold_single: 200000
+# Source: IRS Topic 751 / IRC 3101(b). The $200,000 threshold is set in statute (not indexed).

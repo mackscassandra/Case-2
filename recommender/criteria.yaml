@@ -1,0 +1,50 @@
+# Every scored criterion in one place.
+#   column:    the column in metro_features / zip_features (or computed by the engine)
+#   level:     metro (ranked across Big 4 metros) or zip (ranked within one metro)
+#   direction: higher (bigger is better) or lower (smaller is better; flipped when scored)
+#   category:  the user sets ONE 1-5 weight per category; criteria in a category are averaged
+#   mvp:       true = used now; false = stretch (only scored if the column exists)
+#   label:     plain-English name used in explanations
+#
+# Political data must never appear here (enforced in criteria.py).
+
+categories:
+  pay:                 "Take-home pay"
+  cost_of_living:      "Cost of living"
+  taxes:               "Taxes"
+  safety:              "Safety"
+  young_professionals: "Young-professional crowd"
+  housing:             "Rent"
+  walkability:         "Walkability and transit"
+  fitness_outdoors:    "Gyms, parks and trails"
+  food_coffee:         "Cafés and restaurants"
+  nightlife:           "Nightlife"
+  family:              "Family-friendliness"
+  commute:             "Commute to office"
+  hazard:              "Natural-hazard risk"
+
+criteria:
+  # ---------------- metro level ----------------
+  - {name: real_take_home,    column: real_take_home,     level: metro, direction: higher, category: pay,                 mvp: true,  label: "Take-home pay after taxes and prices"}
+  - {name: price_level,       column: rpp_all,            level: metro, direction: lower,  category: cost_of_living,      mvp: true,  label: "Overall price level"}
+  - {name: housing_prices,    column: rpp_housing,        level: metro, direction: lower,  category: cost_of_living,      mvp: true,  label: "Housing price level"}
+  - {name: income_tax_rate,   column: income_tax_rate,    level: metro, direction: lower,  category: taxes,               mvp: true,  label: "State + local income tax"}
+  - {name: violent_crime,     column: violent_per_100k,   level: metro, direction: lower,  category: safety,              mvp: true,  label: "Violent crime rate"}
+  - {name: property_crime,    column: property_per_100k,  level: metro, direction: lower,  category: safety,              mvp: true,  label: "Property crime rate"}
+  - {name: metro_young,       column: pct_age_22_34,      level: metro, direction: higher, category: young_professionals, mvp: true,  label: "Share of people aged 22-34"}
+
+  # ---------------- ZIP level ----------------
+  - {name: rent,              column: zori_latest,        level: zip, direction: lower,  category: housing,             mvp: true,  label: "Typical rent"}
+  - {name: walk_index,        column: walk_index,         level: zip, direction: higher, category: walkability,         mvp: true,  label: "EPA walkability index"}
+  - {name: transit_share,     column: pct_transit,        level: zip, direction: higher, category: walkability,         mvp: true,  label: "Share commuting by transit"}
+  - {name: gyms,              column: per_sqmi_gym,       level: zip, direction: higher, category: fitness_outdoors,    mvp: true,  label: "Gyms per square mile"}
+  - {name: parks,             column: per_sqmi_park,      level: zip, direction: higher, category: fitness_outdoors,    mvp: true,  label: "Parks per square mile"}
+  - {name: trails,            column: n_trail,            level: zip, direction: higher, category: fitness_outdoors,    mvp: true,  label: "Hiking routes nearby"}
+  - {name: cafes,             column: per_sqmi_cafe,      level: zip, direction: higher, category: food_coffee,         mvp: true,  label: "Cafés per square mile"}
+  - {name: restaurants,       column: per_sqmi_restaurant, level: zip, direction: higher, category: food_coffee,        mvp: true,  label: "Restaurants per square mile"}
+  - {name: bars,              column: per_sqmi_bar,       level: zip, direction: higher, category: nightlife,           mvp: true,  label: "Bars per square mile"}
+  - {name: zip_young,         column: pct_age_22_34,      level: zip, direction: higher, category: young_professionals, mvp: true,  label: "Share of people aged 22-34"}
+  - {name: commute_miles,     column: miles_to_office,    level: zip, direction: lower,  category: commute,             mvp: true,  label: "Distance to office"}
+  - {name: childcare,         column: per_sqmi_childcare, level: zip, direction: higher, category: family,              mvp: false, label: "Childcare per square mile"}
+  - {name: households_kids,   column: pct_hh_with_kids,   level: zip, direction: higher, category: family,              mvp: false, label: "Share of households with kids"}
+  - {name: hazard_risk,       column: nri_risk_score,     level: zip, direction: lower,  category: hazard,              mvp: false, label: "FEMA natural-hazard risk"}
