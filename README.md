@@ -79,3 +79,13 @@ python office.py --lat 30.2849 --lon -97.7341 --years 2020 2021 2022 2023 2024
 Or from Python: `from census import office_profile; office_profile(address="...")`.
 
 Steps: the free [Census Geocoder](https://geocoding.geo.census.gov/) turns the location into state/county/tract FIPS codes, then the Census Data API returns population, median age, household income, home value, rent, unemployment rate and bachelor's-or-higher share. Edit `VARIABLES` in `census/office.py` to pull other variables.
+
+## Job-listing data (WageScape via Dewey)
+
+`ingest/14_wagescape_jobs.py` pulls Big 4 job postings from Dewey (2022 onward) and writes `data/processed/wagescape/`. It runs on GitHub, not in `run_all.py`, because it needs Python 3.12+ and a large download:
+
+1. Add the Dewey key as a repository secret named `DEWEY_API_KEY` (Settings → Secrets and variables → Actions).
+2. Go to the **Actions** tab → **Pull and clean Dewey data** → **Run workflow**.
+3. Results are committed to `data/processed/wagescape/` (files under ~95 MB) and also attached to the run as a downloadable artifact.
+
+Its packages are in `requirements-wagescape.txt`, kept separate so the main install still works on older Python versions.

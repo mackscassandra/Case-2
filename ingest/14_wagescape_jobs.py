@@ -1,5 +1,5 @@
 """Download job-listing data from Dewey month by month, keep only the Big Four
-firms posted on/after 2022-01-01, and write the result to data/clean/.
+firms posted on/after 2022-01-01, and write the result to data/processed/wagescape/.
 
 Each month's files are downloaded, filtered with DuckDB (low memory), and
 deleted before the next month, so the runner's disk never fills up.
@@ -36,7 +36,7 @@ COMPANY_PATTERNS = {
 }
 
 WORK = Path("work")
-OUT_DIR = Path("data/clean")
+OUT_DIR = Path("data/processed/wagescape")
 
 
 def download(folder_id, dest, after=None, before=None):

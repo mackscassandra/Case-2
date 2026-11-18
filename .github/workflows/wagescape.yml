@@ -24,26 +24,26 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-wagescape.txt
 
       - name: Download, filter, and clean
         env:
           DEWEY_API_KEY: ${{ secrets.DEWEY_API_KEY }}
           INCLUDE_ROLES: ${{ inputs.include_roles }}
-        run: python scripts/clean_data.py
+        run: python ingest/14_wagescape_jobs.py
 
       - name: Upload as a downloadable artifact
         uses: actions/upload-artifact@v4
         with:
           name: cleaned-data
-          path: data/clean/
+          path: data/processed/wagescape/
           retention-days: 30
 
       - name: Commit results to the repo (skips files over ~95 MB)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for f in data/clean/*; do
+          for f in data/processed/wagescape/*; do
             size=$(stat -c %s "$f")
             if [ "$size" -le 95000000 ]; then
               git add "$f"
