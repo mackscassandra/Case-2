@@ -39,6 +39,7 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 | 09 | OpenStreetMap: cafes, restaurants, bars, gyms, parks, childcare, hiking trails | ZIP | `osm_points`, `osm_amenities_zip` |
 | 10 | Google Places cafe ratings (optional) | ZIP | `google_cafes_zip` |
 | 11 | FBI Crime Data Explorer (violent + property) | police agency → metro | `fbi_crime_agency` |
+| 16 | NOAA 1991-2020 climate normals: avg temp, summer high, winter low, 90°F+ days, freezing days, rain, rainy days, snow | office city → metro | `climate_city`, `climate_metro` |
 | build | Everything joined | ZIP + metro | `zip_features`, `metro_features` |
 
 ### Entered by hand (`data/manual/`)
@@ -50,7 +51,7 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 
 ### Not yet built (stretch)
 
-School quality (NCES + Stanford SEDA), NOAA climate normals, air quality, CPA licensure rules.
+School quality (NCES + Stanford SEDA), air quality, CPA licensure rules.
 
 ## What goes in GitHub
 
