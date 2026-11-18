@@ -48,7 +48,7 @@ def download(folder_id, dest, after=None, before=None):
         cmd += ["--partition-key-after", after.isoformat()]
     if before:
         cmd += ["--partition-key-before", before.isoformat()]
-    subprocess.run(cmd, cwd=dest, check=True)
+    subprocess.run(cmd, cwd=dest, check=True, text=True, input="./dewey-downloads\n")
     return sorted(dest.rglob("*.parquet"))
 
 
