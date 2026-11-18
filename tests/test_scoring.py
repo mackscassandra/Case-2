@@ -79,3 +79,28 @@ def test_salary_required_when_no_base(tables):
     with pytest.raises(ValueError, match="enter a salary"):
         score_metros(tables["metro"], tables["offices"], tables["state_taxes"], tables["local_taxes"], empty,
                      UserInputs(weights={"pay": 5}))
+
+
+def test_local_tax_matched_to_metro_by_office_city(tables):
+    from recommender.scoring import prepare_metros
+    m = prepare_metros(tables["metro"], tables["offices"], tables["state_taxes"], tables["local_taxes"],
+                       tables["salary_base"], UserInputs()).set_index("cbsa_code")
+    assert m.at["35620", "local_rate"] == pytest.approx(0.03)     # NYC row had no cbsa_code
+    assert m.at["12420", "local_rate"] == 0
+
+
+def test_exact_state_grid_is_used_when_available(tables):
+    from recommender.scoring import prepare_metros
+    grid = pd.DataFrame({"state": ["TX", "TX"], "salary": [40000, 200000],
+                         "state_income_tax": [0, 0], "state_payroll_tax": [0, 0]})
+    m = prepare_metros(tables["metro"], tables["offices"], tables["state_taxes"], tables["local_taxes"],
+                       tables["salary_base"], UserInputs(), state_grid=grid).set_index("cbsa_code")
+    assert m.at["12420", "state_tax_method"].startswith("exact")
+    assert m.at["12420", "state_tax"] == 0
+
+
+def test_service_line_accepts_1_0_from_ingest_15(tables):
+    from recommender.scoring import offers_line
+    off = pd.DataFrame({"audit": ["1", "0", "", "Y", "N", "1.0"]})
+    got = [None if pd.isna(x) else x for x in offers_line(off, "Audit")]
+    assert got == [True, False, None, True, False, True]

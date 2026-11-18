@@ -26,6 +26,8 @@ def tables():
         "firm":  ["Deloitte", "PwC", "EY", "KPMG", "Deloitte", "EY", "KPMG"],
         "office_name": ["Austin", "New York", "Chicago", "Seattle", "Denver", "Miami", "Austin"],
         "cbsa_code": ["12420", "35620", "16980", "42660", "19740", "33100", "12420"],
+        "city": ["Austin", "New York", "Chicago", "Seattle", "Denver", "Miami", "Austin"],
+        "state": ["TX", "NY", "IL", "WA", "CO", "FL", "TX"],
         "lat": [30.27, 40.75, 41.88, 47.61, 39.74, 25.77, 30.26],
         "lon": [-97.74, -73.98, -87.63, -122.33, -104.99, -80.19, -97.75],
         "audit": ["Y", "Y", "Y", "Y", "Y", "Y", "N"],
@@ -37,7 +39,9 @@ def tables():
         "has_wage_income_tax": ["N", "Y", "Y", "N", "Y", "N"],
         "income_tax_rate_at_75k": ["0", "5", "4.95", "0", "4.4", "0"],   # synthetic effective rates
     })
-    local_taxes = pd.DataFrame({"cbsa_code": ["35620"], "resident_rate": ["3"]})  # synthetic
+    # Synthetic. Blank cbsa_code is matched to a metro through the office list (city + state).
+    local_taxes = pd.DataFrame({"city": ["New York"], "state": ["NY"], "cbsa_code": [None],
+                                "resident_rate": ["3"], "nonresident_rate": ["0"]})
     salary_base = pd.DataFrame({
         "firm": ["Deloitte", "PwC", "EY", "KPMG"], "service_line": ["Audit"] * 4,
         "salary_low": [70000, 72000, 70000, 71000], "salary_high": [80000, 82000, 80000, 79000],
