@@ -1,0 +1,113 @@
+name: Run data pipeline
+
+# Runs `python ingest/run_all.py` on GitHub's servers (no laptop needed) and commits the
+# results in data/processed/ back to the repo.
+#
+# One-time setup: Settings -> Secrets and variables -> Actions -> New repository secret:
+#   CENSUS_API_KEY, BEA_API_KEY, FBI_API_KEY   (free; links in README)
+#   CONTACT_EMAIL                              (optional; sent as the User-Agent some
+#                                               government sites require)
+# Then: Actions tab -> "Run data pipeline" -> Run workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Reuse downloads from earlier runs so re-runs only fetch what's missing.
+      - name: Restore downloaded raw files
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+
+      - name: Check API keys are set
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
+          FBI_API_KEY: ${{ secrets.FBI_API_KEY }}
+        run: |
+          missing=""
+          for k in CENSUS_API_KEY BEA_API_KEY FBI_API_KEY; do
+            if [ -z "${!k}" ]; then missing="$missing $k"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+
+      - name: Run pipeline (ingest/run_all.py)
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
+          FBI_API_KEY: ${{ secrets.FBI_API_KEY }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+          PYTHONUNBUFFERED: "1"
+        run: python ingest/run_all.py 2>&1 | tee pipeline.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Pipeline summary"
+            echo '```'
+            sed -n '/^Summary/,$p' pipeline.log 2>/dev/null || echo "no summary (see logs)"
+            echo '```'
+            echo "## Files in data/processed"
+            echo '```'
+            ls -la data/processed
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-output
+          path: |
+            data/processed/
+            pipeline.log
+          retention-days: 30
+
+      - name: Commit results (skips files over ~95 MB)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for f in data/processed/*; do
+            [ -f "$f" ] || continue
+            size=$(stat -c %s "$f")
+            if [ "$size" -le 95000000 ]; then
+              git add "$f"
+            else
+              echo "::warning::Skipping $f ($size bytes): too large to commit; it is in the pipeline-output artifact."
+            fi
+          done
+          git add data/manual
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update processed data from pipeline run ($(date -u +%Y-%m-%d))"
+            git pull --rebase
+            git push
+          fi

@@ -14,6 +14,8 @@ python ingest/run_all.py    # downloads, cleans and builds everything (~20-40 mi
 
 Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 
+**Or run it on GitHub (no laptop needed):** add `CENSUS_API_KEY`, `BEA_API_KEY` and `FBI_API_KEY` (optionally `CONTACT_EMAIL`) as repository secrets (Settings → Secrets and variables → Actions), then go to **Actions → Run data pipeline → Run workflow**. Results are committed to `data/processed/`; files over ~95 MB are skipped from the commit but included in the run's `pipeline-output` artifact along with the full log.
+
 ## Free API keys you need
 
 | Key | Used by | Sign up |
