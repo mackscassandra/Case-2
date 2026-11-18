@@ -316,4 +316,4 @@ PwC,"Washington, D.C.",655 New York Ave NW,Washington,DC,20001,38.90374,-77.0205
 PwC,San Juan,"304 Ponce de Leon Avenue, Suite 800",San Juan,PR,00918,18.4254662,-66.0590234,,,,,main,firm site,,https://www.pwc.com/us/en/about-us/pwc-office-locations.html,2026-11-18
 PwC,El Segundo,"2141 Rosecrans Avenue, Suite 5100",El Segundo,CA,90245,33.9033389,-118.3863375,,,,,main,firm site,address missing in PwC data; from builtin.com,https://www.pwc.com/us/en/about-us/pwc-office-locations.html,2026-11-18
 PwC,Boca Raton,"5100 Town Center Circle, Suite 600",Boca Raton,FL,33486,26.3629745,-80.1225549,,,,,main,firm site,,https://www.pwc.com/us/en/about-us/pwc-office-locations.html,2026-11-18
-PwC,Silicon Valley/San Jose,,San Jose,CA,,37.3203568,-121.9511108,,,,,main,firm site,no address in PwC data; coordinates only,https://www.pwc.com/us/en/about-us/pwc-office-locations.html,2026-11-18
+PwC,Silicon Valley/San Jose,"3155 Olsen Drive, Suite 700",San Jose,CA,,37.3203568,-121.9511108,,,,,main,firm site,no address in PwC data; coordinates only,https://www.pwc.com/us/en/about-us/pwc-office-locations.html,2026-11-18
