@@ -1,0 +1,59 @@
+name: Pull and clean Dewey data
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_roles:
+        description: "Also download the Role Mapping table and join it (large download)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350        # GitHub-hosted jobs are capped at 6 hours
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # deweypy requires Python 3.12 or 3.13
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download, filter, and clean
+        env:
+          DEWEY_API_KEY: ${{ secrets.DEWEY_API_KEY }}
+          INCLUDE_ROLES: ${{ inputs.include_roles }}
+        run: python scripts/clean_data.py
+
+      - name: Upload as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleaned-data
+          path: data/clean/
+          retention-days: 30
+
+      - name: Commit results to the repo (skips files over ~95 MB)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for f in data/clean/*; do
+            size=$(stat -c %s "$f")
+            if [ "$size" -le 95000000 ]; then
+              git add "$f"
+            else
+              echo "Skipping $f ($size bytes) - too large for a normal commit; use the artifact."
+            fi
+          done
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update cleaned Dewey data ($(date -u +%Y-%m-%d))"
+            git push
+          fi
