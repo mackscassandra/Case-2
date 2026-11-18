@@ -37,3 +37,19 @@ def test_rpp_adjustment_matches_plan_example():
 def test_unknown_state_rate_gives_nan_not_a_guess():
     import math
     assert math.isnan(take_home(75000, state_rate=float("nan"), rpp=100)["net"])
+
+
+def test_state_tax_grid_interpolates_and_extends():
+    import pandas as pd
+    from recommender.taxes import state_tax_from_grid
+    g = pd.DataFrame({"state": ["XX"] * 3, "salary": [40000, 45000, 50000],
+                      "state_income_tax": [1000, 1200, 1400], "state_payroll_tax": [0, 0, 100]})
+    assert state_tax_from_grid(g, "XX", 42500) == pytest.approx((1100, 0))
+    assert state_tax_from_grid(g, "XX", 100000) == pytest.approx((2800, 200))   # top effective rate
+    import math
+    assert all(math.isnan(v) for v in state_tax_from_grid(g, "ZZ", 50000))
+
+
+def test_take_home_uses_dollar_state_tax_and_payroll():
+    t = take_home(75000, rpp=100, state_tax=3000, state_payroll_tax=500)
+    assert t["net"] == pytest.approx(75000 - 7670 - 75000 * 0.0765 - 3000 - 500)

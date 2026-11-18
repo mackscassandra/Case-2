@@ -34,4 +34,7 @@ def load_tables(include_zips: bool = True) -> dict[str, pd.DataFrame]:
     }
     if include_zips:
         t["zip"] = _parquet("zip_features")
+    grid = PROCESSED / "state_income_tax.parquet"      # optional: exact state tax by salary
+    if grid.exists():
+        t["state_income_tax"] = pd.read_parquet(grid)
     return t

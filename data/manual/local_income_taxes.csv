@@ -1,1 +1,20 @@
 city,state,cbsa_code,resident_rate,nonresident_rate,notes,source_url,as_of
+New York,NY,,3.017,0,"Graduated 3.078%-3.876% minus school tax credit; 3.017% is the effective rate on $75k wages (PolicyEngine-US). Residents only.",https://github.com/PolicyEngine/policyengine-us,2026-11-18
+Philadelphia,PA,,3.735,3.425,"Wage Tax, rates effective July 1, 2026 (3.74% / 3.43% before). Official source.",https://www.phila.gov/services/payments-assistance-taxes/business-taxes/wage-tax-employers/,2026-11-18
+Pittsburgh,PA,,3.0,1.0,"Earned Income Tax: 1% city + 2% school district for residents. 1% applies to non-Pennsylvania residents working in the city; PA residents of other towns pay their home EIT instead. $52/yr Local Services Tax not included. Official source.",https://www.pittsburghpa.gov/City-Government/Finances/Taxes,2026-11-18
+Detroit,MI,,2.4,1.2,"Nonresident rate is 50% of resident by state law (MCL 141.503). Rate from secondary sources; VERIFY with City of Detroit / Michigan Treasury.",https://syfert.com/michigan/sections/141.503.html,2026-11-18
+Grand Rapids,MI,,1.5,0.75,"VERIFY: secondary source only.",https://wealthvieu.com/michigan-income-tax-guide/,2026-11-18
+Kansas City,MO,,1.0,1.0,"Earnings tax on residents and on nonresidents working in the city. Secondary source; VERIFY with KCMO Revenue Division.",https://www.paylocity.com/resources/tax-compliance/tax-facts/missouri/,2026-11-18
+St. Louis,MO,,1.0,1.0,"Earnings tax on residents and on nonresidents working in the city; renewal on the April 2026 ballot. Secondary source; VERIFY with St. Louis Collector of Revenue.",https://nextstl.com/2026/03/st-louis-earnings-tax-and-why-it-matters/,2026-11-18
+Louisville,KY,,2.2,1.45,"Occupational license tax on work done in Jefferson County: 2.2% for county residents, 1.45% for nonresidents. Source shows 2025 rates; VERIFY 2026 with Louisville Metro Revenue Commission.",https://louisville.edu/finance/payroll/forms/city-county-tax-exemption-2025,2026-11-18
+Birmingham,AL,,1.0,1.0,"Occupational tax on wages earned in the city. Secondary source; VERIFY with City of Birmingham Tax & License.",https://www.symmetry.com/payroll-tax-insights/alabama-state-local-tax-system,2026-11-18
+Baltimore,MD,,3.2,,"Baltimore City income tax, residents only (Baltimore County is also 3.2%). Maryland residents pay their own county's rate (2.25%-3.30%), based on where they live. Official source.",https://bbmr.baltimorecity.gov/city-tax-rates,2026-11-18
+Indianapolis,IN,,2.02,,"Marion County income tax (residence-based) after the $1,000 exemption, from PolicyEngine-US. VERIFY against Indiana DOR Departmental Notice #1.",https://github.com/PolicyEngine/policyengine-us,2026-11-18
+Columbus,OH,,2.5,2.5,"Ohio city taxes are withheld where you work; your home city may add tax if its rate is higher. Several secondary sources agree; VERIFY with the city.",https://tool.teamzlab.com/tax/ohio-municipal-income-tax-2026-rita-cca-calculator/,2026-11-18
+Cleveland,OH,,2.5,2.5,"Workplace-based (see Columbus). Several secondary sources agree; VERIFY with CCA.",https://tool.teamzlab.com/tax/ohio-municipal-income-tax-2026-rita-cca-calculator/,2026-11-18
+Cincinnati,OH,,1.8,1.8,"Workplace-based (see Columbus). Several secondary sources agree; VERIFY with the city.",https://tool.teamzlab.com/tax/ohio-municipal-income-tax-2026-rita-cca-calculator/,2026-11-18
+Akron,OH,,2.5,2.5,"Workplace-based (see Columbus). VERIFY: secondary sources.",https://tool.teamzlab.com/tax/ohio-municipal-income-tax-2026-rita-cca-calculator/,2026-11-18
+Dayton,OH,,2.5,2.5,"VERIFY: sources conflict (2.5% vs 2.25%).",https://levyio.com/taxes/by-state/ohio/,2026-11-18
+Toledo,OH,,2.5,2.5,"VERIFY: sources conflict (2.5% vs 2.25%).",https://levyio.com/taxes/by-state/ohio/,2026-11-18
+Portland,OR,,0,0,"Metro SHS and Multnomah County PFA taxes apply only above a high-income threshold, so taken as 0 at entry-level pay. VERIFY thresholds with City of Portland Revenue Division.",,2026-11-18
+Denver,CO,,0,0,"Occupational Privilege Tax is a flat monthly fee for employees, not a percentage; left as 0. VERIFY amount with Denver Treasury.",,2026-11-18
