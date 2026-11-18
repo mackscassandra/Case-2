@@ -89,3 +89,15 @@ Steps: the free [Census Geocoder](https://geocoding.geo.census.gov/) turns the l
 3. Results are committed to `data/processed/wagescape/` (files under ~95 MB) and also attached to the run as a downloadable artifact.
 
 Its packages are in `requirements-wagescape.txt`, kept separate so the main install still works on older Python versions.
+
+### Coding audit / tax / advisory per office
+
+Once the WageScape run has committed `data/processed/wagescape/`, run:
+
+```bash
+git pull
+python ingest/15_office_service_lines.py --inspect   # check the columns it detected
+python ingest/15_office_service_lines.py             # writes 1/0 into big4_offices.csv
+```
+
+An office gets **1** for a service line when its firm posted at least 3 jobs in that line in the office's metro since 2022 (change with `SERVICE_MIN_POSTINGS` in `.env`), otherwise **0**. Postings name a city, not a building, so a firm's offices in one metro share codes. Specialty sites (`office_type = specialty`) are left blank to code by hand. The counts behind every code are saved to `data/processed/office_service_postings.csv`.
