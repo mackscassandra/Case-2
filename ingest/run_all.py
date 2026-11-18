@@ -12,7 +12,7 @@ STEPS = [
     "01_geography.py", "02_census_acs.py", "03_bea_rpp.py", "04_bls_oews.py",
     "05_zillow.py", "06_elections.py", "07_fema_nri.py", "08_epa_walkability.py",
     "09_osm_amenities.py", "10_google_places_cafes.py", "11_fbi_crime.py",
-    "12_census_offices.py", "13_precinct_results.py", "build_tables.py",
+    "12_census_offices.py", "build_tables.py",
 ]
 
 

@@ -44,8 +44,7 @@ def main():
     z = load("geo_zcta", ["zcta", "land_sqmi", "lat", "lon", "county_fips", "state", "cbsa_code"])
     if z is None:
         raise SystemExit("Run 01_geography.py first")
-    for name in ["acs_zcta", "zillow_zip", "epa_walkability_zip", "osm_amenities_zip", "google_cafes_zip",
-                 "elections_zip"]:
+    for name in ["acs_zcta", "zillow_zip", "epa_walkability_zip", "osm_amenities_zip", "google_cafes_zip"]:
         z = join(z, load(name), "zcta")
     for name in ["elections_county", "fema_nri_county"]:
         z = join(z, load(name), "county_fips")

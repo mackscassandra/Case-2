@@ -38,7 +38,6 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 | 09 | OpenStreetMap: cafes, restaurants, bars, gyms, parks, childcare, hiking trails | ZIP | `osm_points`, `osm_amenities_zip` |
 | 10 | Google Places cafe ratings (optional) | ZIP | `google_cafes_zip` |
 | 11 | FBI Crime Data Explorer (violent + property) | police agency → metro | `fbi_crime_agency` |
-| 13 | 2024 presidential results by precinct (NYT), summed to ZIP (display only) | precinct → ZIP | `elections_precinct`, `elections_zip` |
 | build | Everything joined | ZIP + metro | `zip_features`, `metro_features` |
 
 ### Entered by hand (`data/manual/`)
@@ -59,14 +58,6 @@ School quality (NCES + Stanford SEDA), NOAA climate normals, air quality, CPA li
 ## Data attribution
 
 Census Bureau, BEA, BLS, FBI, FEMA, EPA (public domain); Zillow Research; © OpenStreetMap contributors (ODbL); Google Places (display terms apply).
-
-2024 county results: tonmcg/US_County_Level_Election_Results_08-24. 2024 precinct results: The New York Times, used under its non-commercial Computational Use of Data Agreement. Any page or slide showing precinct or ZIP-level voting data must credit The New York Times and link to https://www.nytimes.com/interactive/2025/us/elections/2024-election-map-precinct-results.html
-
-### Voting data notes
-
-- County results (`elections_county`) cover every county and are the fallback where a ZIP has no precinct coverage.
-- Precinct results are missing for some counties and states, and most of New England is reported by town. `zip_share_official_boundary` shows how much of a ZIP's result comes from official (not estimated) precinct shapes.
-- Voting data is shown on the map only; it is never part of the recommendation score.
 
 ## Census API helper
 
