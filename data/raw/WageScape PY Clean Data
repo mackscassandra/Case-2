@@ -1,0 +1,159 @@
+"""Download job-listing data from Dewey month by month, keep only the Big Four
+firms posted on/after 2022-01-01, and write the result to data/clean/.
+
+Each month's files are downloaded, filtered with DuckDB (low memory), and
+deleted before the next month, so the runner's disk never fills up.
+
+The API key is read from DEWEY_API_KEY and never written to disk or printed.
+"""
+import calendar
+import datetime as dt
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import duckdb
+
+API_KEY = os.environ.get("DEWEY_API_KEY")
+INCLUDE_ROLES = os.environ.get("INCLUDE_ROLES", "false").lower() == "true"
+
+# Dewey product folder IDs (not secrets)
+PRIMARY_ID = "prj_cxhs7r6j__fldr_vhci9v4wjx86gg7nq"
+ROLES_ID = "prj_cxhs7r6j__fldr_9ffabnvob79dxdvcn"
+
+KEEP_FROM = dt.date(2022, 1, 1)  # "after 2021"
+
+# Standard name -> regex (applied to lowercased COMPANY). Word boundaries keep
+# "ey" from matching inside other words. Review company_name_summary.csv after
+# a run to catch false positives, then tighten these patterns.
+COMPANY_PATTERNS = {
+    "EY (Ernst & Young)": r"\bey\b|ernst\s*(&|and)\s*young",
+    "Deloitte": r"deloitte",
+    "KPMG": r"\bkpmg\b",
+    "PwC": r"\bpwc\b|pricewaterhouse\s*coopers",
+}
+
+WORK = Path("work")
+OUT_DIR = Path("data/clean")
+
+
+def download(folder_id, dest, after=None, before=None):
+    """Run the official deweypy CLI inside `dest`."""
+    dest.mkdir(parents=True, exist_ok=True)
+    cmd = [sys.executable, "-m", "deweypy", "--api-key", API_KEY,
+           "speedy-download", folder_id]
+    if after:
+        cmd += ["--partition-key-after", after.isoformat()]
+    if before:
+        cmd += ["--partition-key-before", before.isoformat()]
+    subprocess.run(cmd, cwd=dest, check=True)
+    return sorted(dest.rglob("*.parquet"))
+
+
+def month_ranges(start, today):
+    y, m = start.year, start.month
+    while (y, m) <= (today.year, today.month):
+        yield dt.date(y, m, 1), dt.date(y, m, calendar.monthrange(y, m)[1])
+        m += 1
+        if m == 13:
+            y, m = y + 1, 1
+
+
+def company_case():
+    whens = "\n".join(
+        f"WHEN regexp_matches(lower(COMPANY), '{pat}') THEN '{name}'"
+        for name, pat in COMPANY_PATTERNS.items()
+    )
+    return f"CASE {whens} END"
+
+
+def filter_month(con, files, out_path):
+    glob_list = ", ".join(f"'{f.as_posix()}'" for f in files)
+    con.execute(f"""
+        COPY (
+            SELECT *, {company_case()} AS COMPANY_STD
+            FROM read_parquet([{glob_list}], union_by_name=true)
+            WHERE CAST(POST_DATE AS DATE) >= DATE '{KEEP_FROM.isoformat()}'
+              AND {company_case()} IS NOT NULL
+        ) TO '{out_path.as_posix()}' (FORMAT PARQUET)
+    """)
+    return con.execute(f"SELECT count(*) FROM read_parquet('{out_path.as_posix()}')").fetchone()[0]
+
+
+def main():
+    if not API_KEY:
+        sys.exit("DEWEY_API_KEY must be set.")
+
+    shutil.rmtree(WORK, ignore_errors=True)
+    parts = WORK / "parts"
+    parts.mkdir(parents=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect()
+
+    # ---- Stage 1: primary table, one month at a time -----------------------
+    total, months_with_files = 0, 0
+    for after, before in month_ranges(KEEP_FROM, dt.date.today()):
+        tag = after.strftime("%Y-%m")
+        dl_dir = WORK / "dl" / tag
+        files = download(PRIMARY_ID, dl_dir, after, before)
+        if files:
+            months_with_files += 1
+            n = filter_month(con, files, parts / f"{tag}.parquet")
+            total += n
+            print(f"{tag}: {len(files)} files -> {n} matching rows", flush=True)
+        else:
+            print(f"{tag}: no files", flush=True)
+        shutil.rmtree(dl_dir, ignore_errors=True)
+
+    if months_with_files == 0:
+        sys.exit("No parquet files were downloaded. Check the API key, folder ID, "
+                 "and where deweypy saves files (run `python -m deweypy --help`).")
+
+    # ---- Combine, keeping the latest version of each job listing -----------
+    final = OUT_DIR / "jobs_big4.parquet"
+    con.execute(f"""
+        COPY (
+            SELECT * FROM read_parquet('{parts.as_posix()}/*.parquet', union_by_name=true)
+            QUALIFY row_number() OVER (PARTITION BY JOB_ID ORDER BY MODIFY_TIMESTAMP DESC) = 1
+        ) TO '{final.as_posix()}' (FORMAT PARQUET)
+    """)
+    rows = con.execute(f"SELECT count(*) FROM read_parquet('{final.as_posix()}')").fetchone()[0]
+    print(f"Combined (deduplicated by JOB_ID): {rows} rows")
+
+    # ---- Optional stage 2: add role classification columns -----------------
+    if INCLUDE_ROLES:
+        role_files = download(ROLES_ID, WORK / "roles")
+        if not role_files:
+            sys.exit("No role-mapping parquet files were downloaded.")
+        joined = OUT_DIR / "jobs_big4_with_roles.parquet"
+        con.execute(f"""
+            COPY (
+                SELECT p.* EXCLUDE (ROLE_PRIMARY),
+                       r.ROLE_PRIMARY, r.JOB_FAMILY, r.SUB_JOB_FAMILY,
+                       r.CAREER_STREAM, r.SOC6D, r.SOC6D_TITLE, r.SENIORITY
+                FROM read_parquet('{final.as_posix()}') p
+                LEFT JOIN (
+                    SELECT * FROM read_parquet('{WORK.as_posix()}/roles/**/*.parquet', union_by_name=true)
+                    QUALIFY row_number() OVER (PARTITION BY JOB_ID ORDER BY MODIFY_TIMESTAMP DESC) = 1
+                ) r USING (JOB_ID)
+            ) TO '{joined.as_posix()}' (FORMAT PARQUET)
+        """)
+        print(f"Wrote {joined}")
+
+    # ---- Review file: which raw names matched which firm -------------------
+    con.execute(f"""
+        COPY (
+            SELECT COMPANY_STD, COMPANY AS company_as_listed, count(*) AS listings
+            FROM read_parquet('{final.as_posix()}')
+            GROUP BY ALL ORDER BY COMPANY_STD, listings DESC
+        ) TO '{(OUT_DIR / "company_name_summary.csv").as_posix()}' (HEADER, DELIMITER ',')
+    """)
+
+    shutil.rmtree(WORK, ignore_errors=True)
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()
