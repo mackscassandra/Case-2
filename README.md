@@ -27,6 +27,7 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 
 | Step | Dataset | Level | Output (`data/processed/`) |
 | --- | --- | --- | --- |
+| 01b | Big 4 offices placed in metros and counties | office | `offices` |
 | 01 | Census cartographic boundaries (CBSA 2023, county 2023, ZCTA 2020) | metro / county / ZIP | `geo_cbsa`, `geo_county`, `geo_zcta` |
 | 02 | Census ACS 5-year: age, education, income, rent, home value, property tax, kids, commuting | ZIP + metro | `acs_zcta`, `acs_cbsa` |
 | 03 | BEA Regional Price Parities (cost of living, US = 100) | metro + state | `bea_rpp_cbsa`, `bea_rpp_state` |
@@ -42,7 +43,7 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 
 ### Entered by hand (`data/manual/`)
 
-- `big4_offices.csv` — every US office for Deloitte, PwC, EY, KPMG with service lines. **Fill this first**: step 09 uses its `cbsa_code`s to choose which metros to pull.
+- `big4_offices.csv` — 318 US offices for Deloitte (91), EY (82), KPMG (75) and PwC (70), from each firm's official office locator (Nov 18, 2026). `office_type` marks specialty sites (Deloitte Digital, EY wavespace, Deloitte University, etc.); `notes` flags entries that needed a fix. Service-line columns are blank: the firms don't publish them per office. `01b_offices.py` adds metro and county codes automatically.
 - `salary_base.csv` — posted pay ranges from Big 4 job postings in pay-transparency states + the MPA employment report.
 - `state_taxes.csv` — the no-wage-tax flag is filled; add rates from the Tax Foundation.
 - `local_income_taxes.csv` — cities with local income tax (NYC, Philadelphia, etc.).

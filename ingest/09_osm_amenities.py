@@ -28,12 +28,12 @@ CATEGORIES = {
 
 
 def target_metros(cbsa: gpd.GeoDataFrame) -> list[str]:
-    offices = MANUAL / "big4_offices.csv"
+    offices = PROCESSED / "offices.parquet"  # built by 01b_offices.py
     if offices.exists():
-        codes = pd.read_csv(offices, dtype=str)["cbsa_code"].dropna().unique().tolist()
+        codes = pd.read_parquet(offices, columns=["cbsa_code"])["cbsa_code"].dropna().unique().tolist()
         if codes:
             return codes
-    print("  big4_offices.csv has no cbsa_code values yet; using the 50 largest metros")
+    print("  offices.parquet not found (run 01b_offices.py); using the 50 largest metros")
     acs = pd.read_parquet(PROCESSED / "acs_cbsa.parquet")
     return acs.nlargest(50, "pop_total")["cbsa_code"].tolist()
 
