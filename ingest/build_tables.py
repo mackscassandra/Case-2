@@ -54,7 +54,7 @@ def main():
 
     print("Building metro_features")
     m = load("geo_cbsa", ["cbsa_code", "cbsa_name", "is_metro"])
-    for name in ["acs_cbsa", "bea_rpp_cbsa", "bls_accountant_wages_cbsa"]:
+    for name in ["acs_cbsa", "bea_rpp_cbsa", "bls_accountant_wages_cbsa", "climate_metro"]:
         m = join(m, load(name), "cbsa_code")
     m = join(m, crime_by_metro(), "cbsa_code")
     # TODO: join acs_offices (from 12_census_offices.py) here. It is long-format
