@@ -8,6 +8,7 @@ The API key is read from DEWEY_API_KEY and never written to disk or printed.
 """
 import calendar
 import datetime as dt
+import gzip
 import os
 import shutil
 import subprocess
@@ -85,6 +86,51 @@ def filter_month(con, files, out_path):
     return con.execute(f"SELECT count(*) FROM read_parquet('{out_path.as_posix()}')").fetchone()[0]
 
 
+DATA_SUFFIXES = (".parquet", ".parquet.gz", ".csv", ".csv.gz")
+
+
+def data_files(dest):
+    """Every data file deweypy saved under `dest`, in any Dewey format. Logs what it found.
+
+    .parquet.gz is decompressed (one file at a time, original deleted) because DuckDB
+    reads gzipped CSV directly but not gzipped Parquet.
+    """
+    found = [p for p in dest.rglob("*") if p.is_file()]
+    by_type = {}
+    for p in found:
+        key = next((x for x in DATA_SUFFIXES[::-1] if p.name.lower().endswith(x)), p.suffix or "(none)")
+        n, b = by_type.get(key, (0, 0))
+        by_type[key] = (n + 1, b + p.stat().st_size)
+    print("  files found: " + (", ".join(f"{k} x{n} ({b / 1e9:.1f} GB)" for k, (n, b) in by_type.items()) or "none"),
+          flush=True)
+    out = []
+    for p in found:
+        name = p.name.lower()
+        if name.endswith(".parquet.gz"):
+            target = p.with_name(p.name[:-3])
+            with gzip.open(p, "rb") as src, open(target, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+            p.unlink()
+            out.append(target)
+        elif name.endswith(DATA_SUFFIXES):
+            out.append(p)
+    return sorted(out)
+
+
+def read_any(files):
+    """DuckDB expression that reads a mix of Parquet and CSV(.gz) files by column name."""
+    pq = [f for f in files if f.name.lower().endswith(".parquet")]
+    csv = [f for f in files if f.name.lower().endswith((".csv", ".csv.gz"))]
+    parts = []
+    if pq:
+        parts.append("SELECT * FROM read_parquet([" + ", ".join(f"'{f.as_posix()}'" for f in pq)
+                     + "], union_by_name=true)")
+    if csv:
+        parts.append("SELECT * FROM read_csv([" + ", ".join(f"'{f.as_posix()}'" for f in csv)
+                     + "], union_by_name=true, all_varchar=true)")
+    return "(" + " UNION ALL BY NAME ".join(parts) + ")"
+
+
 def metadata(folder_id):
     """Dewey's description of a table: size, file count, how it is partitioned."""
     import httpx  # installed with deweypy
@@ -109,15 +155,15 @@ def add_roles(con, final):
           f"to {meta.get('max_partition_key')}", flush=True)
 
     con.execute(f"CREATE OR REPLACE TABLE big4_ids AS "
-                f"SELECT DISTINCT JOB_ID FROM read_parquet('{final.as_posix()}')")
+                f"SELECT DISTINCT CAST(JOB_ID AS VARCHAR) AS JOB_ID FROM read_parquet('{final.as_posix()}')")
     parts = WORK / "roleparts"
     parts.mkdir(parents=True, exist_ok=True)
 
     def keep_big4(files, out_path):
-        glob_list = ", ".join(f"'{f.as_posix()}'" for f in files)
+        # JOB_ID compared as text: the postings store it as a string, CSV may read a number.
         con.execute(f"""
-            COPY (SELECT * FROM read_parquet([{glob_list}], union_by_name=true)
-                  WHERE JOB_ID IN (SELECT JOB_ID FROM big4_ids))
+            COPY (SELECT * REPLACE (CAST(JOB_ID AS VARCHAR) AS JOB_ID) FROM {read_any(files)}
+                  WHERE CAST(JOB_ID AS VARCHAR) IN (SELECT JOB_ID FROM big4_ids))
             TO '{out_path.as_posix()}' (FORMAT PARQUET)
         """)
         return con.execute(f"SELECT count(*) FROM read_parquet('{out_path.as_posix()}')").fetchone()[0]
@@ -126,7 +172,8 @@ def add_roles(con, final):
         for after, before in month_ranges(KEEP_FROM, dt.date.today()):
             tag = after.strftime("%Y-%m")
             dl_dir = WORK / "roles_dl" / tag
-            files = download(ROLES_ID, dl_dir, after, before)
+            download(ROLES_ID, dl_dir, after, before)
+            files = data_files(dl_dir)
             n = keep_big4(files, parts / f"{tag}.parquet") if files else 0
             print(f"roles {tag}: {len(files)} files -> {n} Big 4 rows", flush=True)
             shutil.rmtree(dl_dir, ignore_errors=True)
@@ -136,8 +183,11 @@ def add_roles(con, final):
             sys.exit(f"Role table is {gb:.1f} GB and not split by date, but only {free_gb:.1f} GB of "
                      "disk is free on this runner. Not downloading.")
         dl_dir = WORK / "roles_dl" / "all"
-        files = download(ROLES_ID, dl_dir)
-        n = keep_big4(files, parts / "all.parquet") if files else 0
+        download(ROLES_ID, dl_dir)
+        files = data_files(dl_dir)
+        if not files:
+            sys.exit("Dewey reported the download finished but no data files were saved (see 'files found').")
+        n = keep_big4(files, parts / "all.parquet")
         print(f"roles (unpartitioned): {len(files)} files -> {n} Big 4 rows", flush=True)
         shutil.rmtree(dl_dir, ignore_errors=True)
 
@@ -164,12 +214,12 @@ def add_roles(con, final):
             LEFT JOIN (
                 SELECT * FROM {roles_src}
                 QUALIFY row_number() OVER (PARTITION BY JOB_ID {order}) = 1
-            ) r USING (JOB_ID)
+            ) r ON CAST(p.JOB_ID AS VARCHAR) = r.JOB_ID
         ) TO '{joined.as_posix()}' (FORMAT PARQUET)
     """)
     total, matched = con.execute(f"""
         SELECT count(*), count(r.JOB_ID) FROM read_parquet('{final.as_posix()}') p
-        LEFT JOIN (SELECT DISTINCT JOB_ID FROM {roles_src}) r USING (JOB_ID)
+        LEFT JOIN (SELECT DISTINCT JOB_ID FROM {roles_src}) r ON CAST(p.JOB_ID AS VARCHAR) = r.JOB_ID
     """).fetchone()
     print(f"Wrote {joined}: {matched:,} of {total:,} postings ({matched / max(total, 1):.0%}) "
           f"have a role; added columns {new_cols}", flush=True)
