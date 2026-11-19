@@ -18,6 +18,9 @@ import duckdb
 
 API_KEY = os.environ.get("DEWEY_API_KEY")
 INCLUDE_ROLES = os.environ.get("INCLUDE_ROLES", "false").lower() == "true"
+# Skip stage 1 and reuse the committed data/processed/wagescape/jobs_big4.parquet
+# (saves the ~17-minute primary download when only the role table is needed).
+ROLES_ONLY = os.environ.get("ROLES_ONLY", "false").lower() == "true"
 
 # Dewey product folder IDs (not secrets)
 PRIMARY_ID = "prj_cxhs7r6j__fldr_vhci9v4wjx86gg7nq"
@@ -82,6 +85,96 @@ def filter_month(con, files, out_path):
     return con.execute(f"SELECT count(*) FROM read_parquet('{out_path.as_posix()}')").fetchone()[0]
 
 
+def metadata(folder_id):
+    """Dewey's description of a table: size, file count, how it is partitioned."""
+    import httpx  # installed with deweypy
+    r = httpx.get(f"https://api.deweydata.io/api/v1/external/data/{folder_id}/metadata",
+                  headers={"X-API-Key": API_KEY}, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def add_roles(con, final):
+    """Download the Role Mapping table, keep only rows for our Big 4 JOB_IDs, and join.
+
+    Downloads month by month when the table is date-partitioned (like stage 1), so the
+    runner's disk never holds more than one month. Column names are read from the files,
+    not assumed. Writes data/processed/wagescape/jobs_big4_with_roles.parquet.
+    """
+    meta = metadata(ROLES_ID)
+    gb = (meta.get("total_size") or 0) / 1e9
+    print(f"Role table: {meta.get('total_files')} files, {gb:.1f} GB, partitioned by "
+          f"{meta.get('partition_column')} ({meta.get('partition_type')}, "
+          f"{meta.get('partition_aggregation')}), keys {meta.get('min_partition_key')} "
+          f"to {meta.get('max_partition_key')}", flush=True)
+
+    con.execute(f"CREATE OR REPLACE TABLE big4_ids AS "
+                f"SELECT DISTINCT JOB_ID FROM read_parquet('{final.as_posix()}')")
+    parts = WORK / "roleparts"
+    parts.mkdir(parents=True, exist_ok=True)
+
+    def keep_big4(files, out_path):
+        glob_list = ", ".join(f"'{f.as_posix()}'" for f in files)
+        con.execute(f"""
+            COPY (SELECT * FROM read_parquet([{glob_list}], union_by_name=true)
+                  WHERE JOB_ID IN (SELECT JOB_ID FROM big4_ids))
+            TO '{out_path.as_posix()}' (FORMAT PARQUET)
+        """)
+        return con.execute(f"SELECT count(*) FROM read_parquet('{out_path.as_posix()}')").fetchone()[0]
+
+    if meta.get("partition_type") == "DATE":
+        for after, before in month_ranges(KEEP_FROM, dt.date.today()):
+            tag = after.strftime("%Y-%m")
+            dl_dir = WORK / "roles_dl" / tag
+            files = download(ROLES_ID, dl_dir, after, before)
+            n = keep_big4(files, parts / f"{tag}.parquet") if files else 0
+            print(f"roles {tag}: {len(files)} files -> {n} Big 4 rows", flush=True)
+            shutil.rmtree(dl_dir, ignore_errors=True)
+    else:
+        free_gb = shutil.disk_usage(".").free / 1e9
+        if gb > 0.8 * free_gb:
+            sys.exit(f"Role table is {gb:.1f} GB and not split by date, but only {free_gb:.1f} GB of "
+                     "disk is free on this runner. Not downloading.")
+        dl_dir = WORK / "roles_dl" / "all"
+        files = download(ROLES_ID, dl_dir)
+        n = keep_big4(files, parts / "all.parquet") if files else 0
+        print(f"roles (unpartitioned): {len(files)} files -> {n} Big 4 rows", flush=True)
+        shutil.rmtree(dl_dir, ignore_errors=True)
+
+    if not list(parts.glob("*.parquet")):
+        sys.exit("No role-mapping parquet files were downloaded.")
+
+    roles_src = f"read_parquet('{parts.as_posix()}/*.parquet', union_by_name=true)"
+    role_cols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {roles_src}").fetchall()]
+    job_cols = {r[0] for r in con.execute(f"DESCRIBE SELECT * FROM read_parquet('{final.as_posix()}')").fetchall()}
+    print(f"Role table columns: {role_cols}", flush=True)
+    if "JOB_ID" not in role_cols:
+        sys.exit("Role table has no JOB_ID column; can't join it to the postings.")
+    # Columns to bring over: everything the postings don't already have, plus
+    # ROLE_PRIMARY (empty in the primary table, filled in the role table).
+    new_cols = [c for c in role_cols if c != "JOB_ID" and (c not in job_cols or c == "ROLE_PRIMARY")]
+    order = "ORDER BY MODIFY_TIMESTAMP DESC" if "MODIFY_TIMESTAMP" in role_cols else ""
+    drop = " EXCLUDE (ROLE_PRIMARY)" if "ROLE_PRIMARY" in new_cols and "ROLE_PRIMARY" in job_cols else ""
+    picks = ", ".join(f'r."{c}"' for c in new_cols)
+    joined = OUT_DIR / "jobs_big4_with_roles.parquet"
+    con.execute(f"""
+        COPY (
+            SELECT p.*{drop}, {picks}
+            FROM read_parquet('{final.as_posix()}') p
+            LEFT JOIN (
+                SELECT * FROM {roles_src}
+                QUALIFY row_number() OVER (PARTITION BY JOB_ID {order}) = 1
+            ) r USING (JOB_ID)
+        ) TO '{joined.as_posix()}' (FORMAT PARQUET)
+    """)
+    total, matched = con.execute(f"""
+        SELECT count(*), count(r.JOB_ID) FROM read_parquet('{final.as_posix()}') p
+        LEFT JOIN (SELECT DISTINCT JOB_ID FROM {roles_src}) r USING (JOB_ID)
+    """).fetchone()
+    print(f"Wrote {joined}: {matched:,} of {total:,} postings ({matched / max(total, 1):.0%}) "
+          f"have a role; added columns {new_cols}", flush=True)
+
+
 def main():
     if not API_KEY:
         sys.exit("DEWEY_API_KEY must be set.")
@@ -91,6 +184,16 @@ def main():
     parts.mkdir(parents=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
+
+    final = OUT_DIR / "jobs_big4.parquet"
+    if ROLES_ONLY:
+        if not final.exists():
+            sys.exit(f"ROLES_ONLY needs {final}; run once without it first.")
+        print(f"ROLES_ONLY: reusing {final}", flush=True)
+        add_roles(con, final)
+        shutil.rmtree(WORK, ignore_errors=True)
+        print("Done.")
+        return
 
     # ---- Stage 1: primary table, one month at a time -----------------------
     total, months_with_files = 0, 0
@@ -112,7 +215,6 @@ def main():
                  "and where deweypy saves files (run `python -m deweypy --help`).")
 
     # ---- Combine, keeping the latest version of each job listing -----------
-    final = OUT_DIR / "jobs_big4.parquet"
     con.execute(f"""
         COPY (
             SELECT * FROM read_parquet('{parts.as_posix()}/*.parquet', union_by_name=true)
@@ -124,23 +226,7 @@ def main():
 
     # ---- Optional stage 2: add role classification columns -----------------
     if INCLUDE_ROLES:
-        role_files = download(ROLES_ID, WORK / "roles")
-        if not role_files:
-            sys.exit("No role-mapping parquet files were downloaded.")
-        joined = OUT_DIR / "jobs_big4_with_roles.parquet"
-        con.execute(f"""
-            COPY (
-                SELECT p.* EXCLUDE (ROLE_PRIMARY),
-                       r.ROLE_PRIMARY, r.JOB_FAMILY, r.SUB_JOB_FAMILY,
-                       r.CAREER_STREAM, r.SOC6D, r.SOC6D_TITLE, r.SENIORITY
-                FROM read_parquet('{final.as_posix()}') p
-                LEFT JOIN (
-                    SELECT * FROM read_parquet('{WORK.as_posix()}/roles/**/*.parquet', union_by_name=true)
-                    QUALIFY row_number() OVER (PARTITION BY JOB_ID ORDER BY MODIFY_TIMESTAMP DESC) = 1
-                ) r USING (JOB_ID)
-            ) TO '{joined.as_posix()}' (FORMAT PARQUET)
-        """)
-        print(f"Wrote {joined}")
+        add_roles(con, final)
 
     # ---- Review file: which raw names matched which firm -------------------
     con.execute(f"""

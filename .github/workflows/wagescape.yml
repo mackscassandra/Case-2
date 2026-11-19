@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       include_roles:
-        description: "Also download the Role Mapping table and join it (large download)"
+        description: "Also download the Role Mapping table and join it (gives job roles/seniority)"
+        type: boolean
+        default: false
+      roles_only:
+        description: "Roles only: reuse the postings already in the repo and just add the Role Mapping table"
         type: boolean
         default: false
 
@@ -23,6 +27,12 @@ jobs:
           python-version: "3.12"   # deweypy requires Python 3.12 or 3.13
           cache: pip
 
+      - name: Free disk space (removes preinstalled toolchains we don't use)
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
       - name: Install dependencies
         run: pip install -r requirements-wagescape.txt
 
@@ -30,6 +40,7 @@ jobs:
         env:
           DEWEY_API_KEY: ${{ secrets.DEWEY_API_KEY }}
           INCLUDE_ROLES: ${{ inputs.include_roles }}
+          ROLES_ONLY: ${{ inputs.roles_only }}
         run: python ingest/14_wagescape_jobs.py
 
       - name: Upload as a downloadable artifact
