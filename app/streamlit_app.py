@@ -150,5 +150,5 @@ for rank, r in enumerate(results, 1):
             st.caption("No ZIPs matched your filters (or ZIP data isn't built yet).")
 
 st.divider()
-st.caption("Political data is never used in scoring. Data: Census, BEA, BLS, FBI, FEMA, EPA, Zillow, "
+st.caption("Political data is never used in scoring. Data: Census, BEA, BLS, FBI, EPA, Zillow, "
            "OpenStreetMap contributors, NOAA. Your inputs are not saved.")

@@ -21,7 +21,6 @@ categories:
   nightlife:           "Nightlife"
   family:              "Family-friendliness"
   commute:             "Commute to office"
-  hazard:              "Natural-hazard risk"
 
 criteria:
   # ---------------- metro level ----------------
@@ -47,4 +46,3 @@ criteria:
   - {name: commute_miles,     column: miles_to_office,    level: zip, direction: lower,  category: commute,             mvp: true,  label: "Distance to office"}
   - {name: childcare,         column: per_sqmi_childcare, level: zip, direction: higher, category: family,              mvp: false, label: "Childcare per square mile"}
   - {name: households_kids,   column: pct_hh_with_kids,   level: zip, direction: higher, category: family,              mvp: false, label: "Share of households with kids"}
-  - {name: hazard_risk,       column: nri_risk_score,     level: zip, direction: lower,  category: hazard,              mvp: false, label: "FEMA natural-hazard risk"}

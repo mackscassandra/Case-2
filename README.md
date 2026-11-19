@@ -36,7 +36,6 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 | 04 | BLS OEWS wages, Accountants & Auditors (13-2011) | metro | `bls_accountant_wages_cbsa` |
 | 05 | Zillow ZORI rent + ZHVI home values | ZIP | `zillow_zip` |
 | 06 | 2024 presidential results (display only) | county | `elections_county` |
-| 07 | FEMA National Risk Index | county | `fema_nri_county` |
 | 08 | EPA National Walkability Index | block group → ZIP | `epa_walkability_zip` |
 | 09 | OpenStreetMap: cafes, restaurants, bars, gyms, sports centres, parks, dog parks, nature reserves, hiking trails, culture (cinemas, theatres, museums), childcare | ZIP | `osm_points`, `osm_amenities_zip` (+ `.csv`) |
 | 10 | Google Places cafe ratings (optional) | ZIP | `google_cafes_zip` |
@@ -61,7 +60,7 @@ School quality (NCES + Stanford SEDA), air quality, CPA licensure rules.
 
 ## Data attribution
 
-Census Bureau, BEA, BLS, FBI, FEMA, EPA (public domain); Zillow Research; © OpenStreetMap contributors (ODbL); Google Places (display terms apply).
+Census Bureau, BEA, BLS, FBI, EPA (public domain); Zillow Research; © OpenStreetMap contributors (ODbL); Google Places (display terms apply).
 
 ## Census API helper
 
