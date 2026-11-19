@@ -1,0 +1,3 @@
+streamlit>=1.50
+pydeck>=0.9
+jinja2>=3.1
