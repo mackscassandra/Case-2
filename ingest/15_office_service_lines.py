@@ -44,6 +44,9 @@ COLS = {
     "lon": ["LONGITUDE", "LON", "LNG"],
     "location": ["LOCATION", "JOB_LOCATION", "LOCATION_RAW"],
 }
+# Role Mapping columns (any that exist are used as classification text).
+ROLE_TEXT_COLS = ["ROLE_PRIMARY", "JOB_FAMILY", "SUB_JOB_FAMILY", "SOC6D_TITLE", "CAREER_STREAM",
+                  "CATEGORY", "DEPARTMENT"]
 FIRMS = {"EY (Ernst & Young)": "EY", "Deloitte": "Deloitte", "KPMG": "KPMG", "PwC": "PwC"}
 STATES = {"alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA",
           "colorado": "CO", "connecticut": "CT", "delaware": "DE", "district of columbia": "DC",
@@ -128,14 +131,21 @@ def main():
         print("Detected:", c)
         print(jobs[[v for v in c.values() if v]].head(10).to_string())
         return
-    if not (c["company"] and c["title"]):
-        sys.exit(f"Need COMPANY_STD and a title column; found {c}. Run with --inspect.")
+    # WageScape has no job-title column; its Role Mapping table (14_wagescape_jobs.py with
+    # include_roles / roles_only) supplies role and job-family text instead. Use every
+    # role-like column present, plus the title if one exists.
+    role_cols = [col for col in ROLE_TEXT_COLS if col in jobs.columns and jobs[col].notna().any()]
+    if not c["company"] or not (c["title"] or role_cols):
+        sys.exit(f"Need COMPANY_STD plus a title or role column (e.g. ROLE_PRIMARY from the Role "
+                 f"Mapping table); found {c}. Run 14_wagescape_jobs.py with roles, or use --inspect.")
 
     print(f"Coding service lines from {len(jobs):,} postings (min {MIN_POSTINGS} per firm x metro x line)")
-    text = jobs[c["title"]].fillna("").astype(str)
-    for k in ["family", "desc"]:
-        if c[k]:
-            text = text + " | " + jobs[c[k]].fillna("").astype(str).str[:600]
+    print(f"  text used: {[c['title']] if c['title'] else []} + {role_cols}")
+    text = jobs[c["title"]].fillna("").astype(str) if c["title"] else pd.Series("", index=jobs.index)
+    for col in role_cols:
+        text = text + " | " + jobs[col].fillna("").astype(str)
+    if c["desc"]:
+        text = text + " | " + jobs[c["desc"]].fillna("").astype(str).str[:600]
     jobs["line"] = classify(text)
     jobs["firm"] = jobs[c["company"]].map(FIRMS)
 
