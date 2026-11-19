@@ -38,7 +38,7 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 | 06 | 2024 presidential results (display only) | county | `elections_county` |
 | 07 | FEMA National Risk Index | county | `fema_nri_county` |
 | 08 | EPA National Walkability Index | block group → ZIP | `epa_walkability_zip` |
-| 09 | OpenStreetMap: cafes, restaurants, bars, gyms, parks, childcare, hiking trails | ZIP | `osm_points`, `osm_amenities_zip` |
+| 09 | OpenStreetMap: cafes, restaurants, bars, gyms, sports centres, parks, dog parks, nature reserves, hiking trails, culture (cinemas, theatres, museums), childcare | ZIP | `osm_points`, `osm_amenities_zip` (+ `.csv`) |
 | 10 | Google Places cafe ratings (optional) | ZIP | `google_cafes_zip` |
 | 11 | FBI Crime Data Explorer (violent + property) | police agency → metro | `fbi_crime_agency` |
 | 16 | NOAA 1991-2020 climate normals: avg temp, summer high, winter low, 90°F+ days, freezing days, rain, rainy days, snow | office city → metro | `climate_city`, `climate_metro` |
@@ -104,3 +104,7 @@ python ingest/15_office_service_lines.py             # writes 1/0 into big4_offi
 ```
 
 An office gets **1** for a service line when its firm posted at least 3 jobs in that line in the office's metro since 2022 (change with `SERVICE_MIN_POSTINGS` in `.env`), otherwise **0**. Postings name a city, not a building, so a firm's offices in one metro share codes. Specialty sites (`office_type = specialty`) are left blank to code by hand. The counts behind every code are saved to `data/processed/office_service_postings.csv`.
+
+## Cafe and hobby data on GitHub (no laptop needed)
+
+`.github/workflows/amenities.yml` runs steps 01, 01b and 09 on GitHub's servers (no API keys). Push to any branch named `osm-...`, or use **Actions → Pull cafe and hobby data → Run workflow** on a branch. Results are committed to that branch; merge them with a pull request. A re-run only fetches metros that failed. Data © OpenStreetMap contributors (ODbL).
