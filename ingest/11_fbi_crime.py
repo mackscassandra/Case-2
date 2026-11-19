@@ -50,7 +50,8 @@ def parse(js) -> tuple[float | None, float | None]:
 def main():
     cbsa = gpd.read_parquet(PROCESSED / "geo_cbsa.parquet")
     county = gpd.read_parquet(PROCESSED / "geo_county.parquet")
-    metros = pd.read_parquet(PROCESSED / "osm_points.parquet", columns=["cbsa_code"])["cbsa_code"].unique()
+    # Crime is scored per metro, so use the metros that have a Big 4 office (from 01b_offices.py).
+    metros = pd.read_parquet(PROCESSED / "offices.parquet", columns=["cbsa_code"])["cbsa_code"].dropna().unique()
     states = sorted(county["state"].dropna().unique())
 
     if "--probe" in sys.argv:
