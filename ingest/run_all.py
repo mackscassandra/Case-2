@@ -2,6 +2,7 @@
 
   python ingest/run_all.py              # everything except the optional Google step
   python ingest/run_all.py --with-google
+  python ingest/run_all.py --skip 09_osm_amenities.py   # leave a step to another workflow
 """
 import subprocess
 import sys
@@ -17,10 +18,14 @@ STEPS = [
 
 
 def main():
+    skip = {sys.argv[i + 1] for i, a in enumerate(sys.argv[:-1]) if a == "--skip"}
     results = {}
     for step in STEPS:
         if step.startswith("10_") and "--with-google" not in sys.argv:
             results[step] = "skipped (optional)"
+            continue
+        if step in skip:
+            results[step] = "skipped (--skip)"
             continue
         print(f"\n=== {step} ===")
         code = subprocess.call([sys.executable, step], cwd=HERE)

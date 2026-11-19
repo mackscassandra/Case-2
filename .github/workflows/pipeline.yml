@@ -62,9 +62,10 @@ jobs:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
           FBI_API_KEY: ${{ secrets.FBI_API_KEY }}
-          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL || vars.CONTACT_EMAIL }}
           PYTHONUNBUFFERED: "1"
-        run: python ingest/run_all.py 2>&1 | tee pipeline.log
+        # OpenStreetMap (hobbies/amenities) runs in its own workflow, so it's skipped here.
+        run: python ingest/run_all.py --skip 09_osm_amenities.py 2>&1 | tee pipeline.log
 
       - name: Summary
         if: always()
@@ -91,6 +92,8 @@ jobs:
           retention-days: 30
 
       - name: Commit results (skips files over ~95 MB)
+        # Runs even if a step failed or the run was cancelled, so finished data isn't lost.
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
