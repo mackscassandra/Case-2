@@ -60,7 +60,6 @@ def demo_tables() -> dict[str, pd.DataFrame]:
         "pct_age_22_34": [0.45, 0.35, 0.22, 0.15, 0.40, 0.38],
         "per_sqmi_childcare": [0.5, 1.5, 2.5, 3.0, 0.4, 1.0],
         "pct_hh_with_kids": [0.08, 0.18, 0.35, 0.42, 0.05, 0.15],
-        "nri_risk_score": [70, 70, 70, 70, 80, 80],
     })
     return {"metro": metro, "offices": offices, "state_taxes": state_taxes,
             "local_taxes": local_taxes, "salary_base": pd.DataFrame(rows), "zip": zips}

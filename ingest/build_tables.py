@@ -46,7 +46,7 @@ def main():
         raise SystemExit("Run 01_geography.py first")
     for name in ["acs_zcta", "zillow_zip", "epa_walkability_zip", "osm_amenities_zip", "google_cafes_zip"]:
         z = join(z, load(name), "zcta")
-    for name in ["elections_county", "fema_nri_county"]:
+    for name in ["elections_county"]:
         z = join(z, load(name), "county_fips")
     for name in ["bea_rpp_cbsa", "bls_accountant_wages_cbsa"]:
         z = join(z, load(name), "cbsa_code")
