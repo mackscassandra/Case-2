@@ -38,7 +38,7 @@ Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
 | 06 | 2024 presidential results (display only) | county | `elections_county` |
 | 07 | FEMA National Risk Index | county | `fema_nri_county` |
 | 08 | EPA National Walkability Index | block group → ZIP | `epa_walkability_zip` |
-| 09 | OpenStreetMap: cafes, restaurants, bars, gyms, sports centres, parks, dog parks, nature reserves, hiking trails, culture (cinemas, theatres, museums), childcare | ZIP | `osm_points`, `osm_amenities_zip` (+ `.csv`) |
+| 09 | OpenStreetMap (ZIPs within 15 mi of a Big 4 office): cafes, restaurants, bars, gyms, sports centres, parks, dog parks, nature reserves, hiking trails, culture (cinemas, theatres, museums), childcare | ZIP | `osm_points`, `osm_amenities_zip` (+ `.csv`) |
 | 10 | Google Places cafe ratings (optional) | ZIP | `google_cafes_zip` |
 | 11 | FBI Crime Data Explorer (violent + property) | police agency → metro | `fbi_crime_agency` |
 | 16 | NOAA 1991-2020 climate normals: avg temp, summer high, winter low, 90°F+ days, freezing days, rain, rainy days, snow | office city → metro | `climate_city`, `climate_metro` |
@@ -107,4 +107,4 @@ An office gets **1** for a service line when its firm posted at least 3 jobs in 
 
 ## Cafe and hobby data on GitHub (no laptop needed)
 
-`.github/workflows/amenities.yml` runs steps 01, 01b and 09 on GitHub's servers (no API keys). Push to any branch named `osm-...`, or use **Actions → Pull cafe and hobby data → Run workflow** on a branch. Results are committed to that branch; merge them with a pull request. A re-run only fetches metros that failed. Data © OpenStreetMap contributors (ODbL).
+`.github/workflows/amenities.yml` pulls places for every ZIP within 15 miles of a Big 4 office (change `OSM_RADIUS_MILES`). One job prepares the map files, four download in parallel, and a final job combines the results and commits them to the branch it ran on (never `main`). Push to any branch named `osm-...`, or use **Actions → Pull cafe and hobby data → Run workflow** on a branch. Finished metros are kept even when a run fails, so re-running only fetches what's missing. Data © OpenStreetMap contributors (ODbL).
