@@ -1,0 +1,94 @@
+name: Pull cafe and hobby data (OpenStreetMap)
+
+# Runs only the steps needed for places-by-ZIP (no API keys needed):
+#   01_geography.py   Census map boundaries (metros, counties, ZIPs)
+#   01b_offices.py    puts each Big 4 office in its metro
+#   09_osm_amenities.py  cafes, restaurants, bars, gyms, parks, trails, ... per ZIP
+# Results are committed to the branch the workflow ran on (never main, which is
+# protected), so they reach main through a normal pull request.
+#
+# Starts automatically when you push to a branch named osm-*; or run it by hand:
+# Actions -> "Pull cafe and hobby data" -> Run workflow -> pick a branch (not main).
+
+on:
+  push:
+    branches: ["osm-*"]
+    paths: ["ingest/09_osm_amenities.py", ".github/workflows/amenities.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: osm-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  amenities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - name: Refuse to run on main
+        if: github.ref_name == 'main'
+        run: |
+          echo "::error::main is protected; run this on a branch (e.g. osm-amenities) and merge by pull request."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Keeps Census shapes and finished metros between runs, so a re-run only
+      # fetches metros that failed last time.
+      - name: Restore downloaded raw files
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: osm-raw-${{ github.run_id }}
+          restore-keys: osm-raw-
+
+      - name: Census map boundaries
+        run: python ingest/01_geography.py
+
+      - name: Place offices in metros
+        run: python ingest/01b_offices.py
+
+      - name: Cafes and hobbies by ZIP
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python ingest/09_osm_amenities.py
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-amenities
+          path: |
+            data/processed/osm_*
+            data/processed/offices.*
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Commit results to this branch
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for f in data/processed/osm_amenities_zip.* data/processed/osm_points.parquet data/processed/offices.*; do
+            [ -f "$f" ] || continue
+            if [ "$(stat -c %s "$f")" -le 95000000 ]; then git add "$f"; else echo "::warning::Skipping $f (too large); it is in the osm-amenities artifact."; fi
+          done
+          git add data/manual/big4_offices.csv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Add OpenStreetMap cafe and hobby counts by ZIP ($(date -u +%Y-%m-%d))"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
