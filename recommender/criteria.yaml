@@ -33,7 +33,7 @@ criteria:
   - {name: metro_young,       column: pct_age_22_34,      level: metro, direction: higher, category: young_professionals, mvp: true,  label: "Share of people aged 22-34"}
 
   # ---------------- ZIP level ----------------
-  - {name: rent,              column: zori_latest,        level: zip, direction: lower,  category: housing,             mvp: true,  label: "Typical rent"}
+  - {name: rent,              column: rent_est,           level: zip, direction: lower,  category: housing,             mvp: true,  label: "Typical rent (Zillow, or estimated from Census)"}
   - {name: walk_index,        column: walk_index,         level: zip, direction: higher, category: walkability,         mvp: true,  label: "EPA walkability index"}
   - {name: transit_share,     column: pct_transit,        level: zip, direction: higher, category: walkability,         mvp: true,  label: "Share commuting by transit"}
   - {name: gyms,              column: per_sqmi_gym,       level: zip, direction: higher, category: fitness_outdoors,    mvp: true,  label: "Gyms per square mile"}

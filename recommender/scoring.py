@@ -204,8 +204,9 @@ def score_zips(zips: pd.DataFrame, cbsa_code: str, office_lat: float, office_lon
     z["miles_to_office"] = miles_between(z["lat"], z["lon"], office_lat, office_lon)
     if inputs.max_miles_to_office is not None:
         z = z[z["miles_to_office"] <= inputs.max_miles_to_office]
-    if inputs.max_rent is not None and "zori_latest" in z:
-        z = z[z["zori_latest"].isna() | (z["zori_latest"] <= inputs.max_rent)]
+    rent_col = "rent_est" if "rent_est" in z else "zori_latest"
+    if inputs.max_rent is not None and rent_col in z:
+        z = z[z[rent_col].isna() | (z[rent_col] <= inputs.max_rent)]
     if inputs.min_walk_index is not None and "walk_index" in z:
         z = z[z["walk_index"].isna() | (z["walk_index"] >= inputs.min_walk_index)]
     if z.empty:
