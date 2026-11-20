@@ -3,6 +3,7 @@
   data/processed/metro_features.parquet  one row per metro (CBSA)
 Missing datasets are skipped with a warning, so this runs at any stage.
 """
+import numpy as np
 import pandas as pd
 
 from common import PROCESSED, save
@@ -39,6 +40,40 @@ def crime_by_metro() -> pd.DataFrame | None:
     return out
 
 
+MIN_ZIPS_FOR_METRO_RATIO = 5
+MIN_CENSUS_RENT = 300   # ACS reports $99-$250 for a few tiny rural ZIPs (bottom-coded); not usable
+
+
+def add_rent_estimate(z: pd.DataFrame) -> pd.DataFrame:
+    """Fill the ZIP rent gap. Zillow (ZORI) covers only ~25% of ZIPs (~52% in Big 4 metros).
+
+    rent_est    = Zillow rent where it exists, else Census median gross rent scaled up to
+                  Zillow's level, else the metro's median Zillow rent.
+    rent_source = "zillow" | "census-scaled" | "metro-median" (blank if nothing is available).
+    The scale factor is the median Zillow/Census ratio of the metro's ZIPs that have both
+    (national median if the metro has fewer than MIN_ZIPS_FOR_METRO_RATIO). Census rent runs
+    lower than market rent, and this scaling cut the median error vs Zillow from 18% to 11%.
+    See docs/rent_estimate.md for the numbers behind this choice.
+    """
+    if "zori_latest" not in z or "median_gross_rent" not in z:
+        return z
+    z = z.copy()
+    census = z["median_gross_rent"].where(z["median_gross_rent"] >= MIN_CENSUS_RENT)
+    both = z["zori_latest"].notna() & census.notna()
+    ratio = (z["zori_latest"] / census)[both]
+    by_metro = ratio.groupby(z.loc[both, "cbsa_code"])
+    metro_ratio = by_metro.median()[by_metro.count() >= MIN_ZIPS_FOR_METRO_RATIO]
+    scale = z["cbsa_code"].map(metro_ratio).fillna(ratio.median())
+    census_scaled = census * scale
+    metro_median = z.groupby("cbsa_code")["zori_latest"].transform("median")
+    z["rent_est"] = z["zori_latest"].fillna(census_scaled).fillna(metro_median)
+    z["rent_source"] = np.select(
+        [z["zori_latest"].notna(), census_scaled.notna(), metro_median.notna()],
+        ["zillow", "census-scaled", "metro-median"], default="")
+    z["rent_source"] = z["rent_source"].replace("", None)
+    return z
+
+
 def main():
     print("Building zip_features")
     z = load("geo_zcta", ["zcta", "land_sqmi", "lat", "lon", "county_fips", "state", "cbsa_code"])
@@ -50,6 +85,7 @@ def main():
         z = join(z, load(name), "county_fips")
     for name in ["bea_rpp_cbsa", "bls_accountant_wages_cbsa"]:
         z = join(z, load(name), "cbsa_code")
+    z = add_rent_estimate(z)
     save(z, "zip_features")
 
     print("Building metro_features")

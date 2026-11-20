@@ -149,7 +149,7 @@ for rank, r in enumerate(results, 1):
 
         st.subheader("Neighborhoods (ZIPs near the top office)")
         if len(zips):
-            zc = ["zcta", "score", "miles_to_office", "zori_latest", "walk_index"]
+            zc = ["zcta", "score", "miles_to_office", "rent_est", "rent_source", "walk_index"]
             st.dataframe(zips[[c for c in zc if c in zips]].round(1), hide_index=True,
                          width="stretch")
             for _, z in zips.head(3).iterrows():

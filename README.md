@@ -70,6 +70,9 @@ School quality (NCES + Stanford SEDA), air quality, CPA licensure rules.
 
 Census Bureau, BEA, BLS, FBI, EPA (public domain); Zillow Research; © OpenStreetMap contributors (ODbL); Google Places (display terms apply).
 
+## Data notes
+- **ZIP rent (`rent_est`)**: Zillow publishes rent for only about half the ZIPs in Big 4 metros, so gaps are filled from Census rent scaled to Zillow's level. Why, how accurate it is, and the alternatives we rejected: [docs/rent_estimate.md](docs/rent_estimate.md).
+
 ## Census API helper
 
 `census/client.py` (with `example.py`) is a small general-purpose client for ad-hoc Census Data API queries. The pipeline's `ingest/02_census_acs.py` pulls the ACS tables the app needs; use the client for quick exploration.
