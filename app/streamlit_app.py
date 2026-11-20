@@ -17,6 +17,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.demo_data import demo_tables  # noqa: E402
+from app.map_labels import office_tips, zip_tips  # noqa: E402
 from recommender import UserInputs, load_tables, recommend  # noqa: E402
 from recommender.criteria import available_categories, load_criteria  # noqa: E402
 from recommender.schemas import FIRMS, SERVICE_LINES  # noqa: E402
@@ -104,11 +105,14 @@ if not results:
 offices_all = tables["offices"]
 off_pts = offices_all[offices_all["firm"].isin(firms)].dropna(subset=["lat", "lon"]).copy()
 off_pts["color"] = off_pts["firm"].map(FIRM_COLORS)
+off_pts = office_tips(off_pts)
 top_codes = [r["metro"]["cbsa_code"] for r in results]
 off_pts["top"] = off_pts["cbsa_code"].isin(top_codes)
 
 zip_pts = pd.concat([r["zips"].assign(metro=r["metro"]["cbsa_name"]) for r in results if len(r["zips"])],
                     ignore_index=True) if any(len(r["zips"]) for r in results) else pd.DataFrame()
+if len(zip_pts):
+    zip_pts = zip_tips(zip_pts)
 
 layers = [pdk.Layer("ScatterplotLayer", off_pts[~off_pts["top"]], get_position="[lon, lat]",
                     get_fill_color="color", get_radius=6000, radius_min_pixels=3, opacity=0.35,
@@ -122,7 +126,7 @@ if len(zip_pts):
 st.pydeck_chart(pdk.Deck(
     layers=layers, map_style="light",
     initial_view_state=pdk.ViewState(latitude=39.0, longitude=-96.0, zoom=3.3),
-    tooltip={"text": "{firm} {office_name}\n{city}, {state}"}))
+    tooltip={"text": "{tip_title}\n{tip_detail}"}))
 st.caption("Large outlined dots: offices in your top metros. Faded dots: other offices. "
            "Blue dots: recommended ZIPs. Colors: Deloitte green, PwC red, EY yellow, KPMG blue.")
 
