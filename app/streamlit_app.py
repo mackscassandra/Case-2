@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.demo_data import demo_tables  # noqa: E402
 from recommender import UserInputs, load_tables, recommend  # noqa: E402
-from recommender.criteria import load_criteria  # noqa: E402
+from recommender.criteria import available_categories, load_criteria  # noqa: E402
 from recommender.schemas import FIRMS, SERVICE_LINES  # noqa: E402
 
 st.set_page_config(page_title="Big 4 Firm & City Recommender", page_icon="🗺️", layout="wide")
@@ -37,20 +37,27 @@ def get_tables() -> tuple[dict[str, pd.DataFrame], bool]:
 
 tables, using_demo = get_tables()
 labels, crits = load_criteria()
-active_cats = [k for k in labels if any(c.category == k and c.mvp for c in crits)]
+have_data = available_categories(crits, tables)
+mvp_cats = [k for k in labels if any(c.category == k and c.mvp for c in crits)]
+active_cats = [k for k in mvp_cats if k in have_data]
+missing_cats = [labels[k] for k in mvp_cats if k not in have_data]
 
 # ------------------------------------------------------------------ sidebar
 with st.sidebar:
     st.header("About you")
     service_line = st.selectbox("Service line", SERVICE_LINES)
     firms = st.multiselect("Firms you'd consider", FIRMS, default=list(FIRMS))
-    use_salary = st.checkbox("I have a specific salary in mind", value=False)
+    no_base = tables["salary_base"].empty   # no default salaries on file: ask for one
+    use_salary = st.checkbox("I have a specific salary in mind", value=no_base, disabled=no_base,
+                             help="Required until data/manual/salary_base.csv is filled in." if no_base else None)
     salary = st.number_input("Base salary ($)", 40_000, 200_000, 80_000, 1_000) if use_salary else None
 
     st.header("What matters to you")
     st.caption("0 = ignore, 5 = very important")
     weights = {k: st.slider(labels[k], 0, 5, 3 if k in ("pay", "cost_of_living") else 0, key=f"w_{k}")
                for k in active_cats}
+    if missing_cats:
+        st.caption("Not available yet (data not built): " + ", ".join(missing_cats))
 
     st.header("Must-haves")
     no_tax = st.checkbox("No state income tax")
@@ -67,6 +74,8 @@ st.caption("For McCombs MPA graduates: find a firm, office, metro and neighborho
 if using_demo:
     st.warning("Showing **synthetic demo data** (made-up numbers). Run the data pipeline "
                "(`python ingest/run_all.py`) to see real results.")
+if "zip" not in tables:
+    st.info("Neighborhood (ZIP) data isn't built yet, so only metros and offices are ranked.")
 if not firms:
     st.info("Pick at least one firm in the sidebar.")
     st.stop()

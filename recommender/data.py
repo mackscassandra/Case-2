@@ -15,7 +15,7 @@ KEYS = {"cbsa_code": str, "zcta": str, "county_fips": str, "state_fips": str, "s
 def _parquet(name: str) -> pd.DataFrame:
     p = PROCESSED / f"{name}.parquet"
     if not p.exists():
-        raise FileNotFoundError(f"{p.relative_to(ROOT)} is missing. Run the ingest pipeline first "
+        raise FileNotFoundError(f"{p.name} is missing. Run the ingest pipeline first "
                                 f"(python ingest/run_all.py).")
     return pd.read_parquet(p)
 
@@ -33,7 +33,10 @@ def load_tables(include_zips: bool = True) -> dict[str, pd.DataFrame]:
         "salary_base": _manual("salary_base"),
     }
     if include_zips:
-        t["zip"] = _parquet("zip_features")
+        try:                      # optional: without it the app still ranks metros and offices
+            t["zip"] = _parquet("zip_features")
+        except FileNotFoundError:
+            pass
     grid = PROCESSED / "state_income_tax.parquet"      # optional: exact state tax by salary
     if grid.exists():
         t["state_income_tax"] = pd.read_parquet(grid)
