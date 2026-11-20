@@ -47,7 +47,9 @@ with st.sidebar:
     st.header("About you")
     service_line = st.selectbox("Service line", SERVICE_LINES)
     firms = st.multiselect("Firms you'd consider", FIRMS, default=list(FIRMS))
-    use_salary = st.checkbox("I have a specific salary in mind", value=False)
+    no_base = tables["salary_base"].empty   # no default salaries on file: ask for one
+    use_salary = st.checkbox("I have a specific salary in mind", value=no_base, disabled=no_base,
+                             help="Required until data/manual/salary_base.csv is filled in." if no_base else None)
     salary = st.number_input("Base salary ($)", 40_000, 200_000, 80_000, 1_000) if use_salary else None
 
     st.header("What matters to you")
