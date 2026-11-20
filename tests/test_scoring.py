@@ -104,3 +104,31 @@ def test_service_line_accepts_1_0_from_ingest_15(tables):
     off = pd.DataFrame({"audit": ["1", "0", "", "Y", "N", "1.0"]})
     got = [None if pd.isna(x) else x for x in offers_line(off, "Audit")]
     assert got == [True, False, None, True, False, True]
+
+
+def test_available_categories_follow_the_loaded_data(tables):
+    from recommender.criteria import available_categories, load_criteria
+    _, crits = load_criteria()
+    have = available_categories(crits, tables)
+    assert {"pay", "cost_of_living", "safety"} <= have          # metro columns + derived pay
+    no_zip = {k: v for k, v in tables.items() if k != "zip"}
+    assert "walkability" in have and "walkability" not in available_categories(crits, no_zip)
+    assert "pay" in available_categories(crits, no_zip)          # metro-level still works
+
+
+def test_recommend_works_without_zip_table(tables):
+    from recommender import UserInputs, recommend
+    no_zip = {k: v for k, v in tables.items() if k != "zip"}
+    res = recommend(no_zip, UserInputs(salary=80000, weights={"pay": 5, "safety": 3}))
+    assert res and all(r["zips"].empty for r in res)
+
+
+def test_load_tables_without_zip_file(tmp_path, monkeypatch):
+    import shutil
+    from recommender import data
+    proc = tmp_path / "processed"; proc.mkdir()
+    for f in ("metro_features.parquet", "offices.parquet"):
+        shutil.copy(data.PROCESSED / f, proc / f)
+    monkeypatch.setattr(data, "PROCESSED", proc)
+    t = data.load_tables()
+    assert "metro" in t and "zip" not in t

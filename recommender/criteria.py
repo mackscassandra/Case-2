@@ -38,3 +38,14 @@ def load_criteria(path: Path | None = None) -> tuple[dict[str, str], list[Criter
         if any(h in c.column.lower() for h in _POLITICAL_HINTS):
             raise ValueError(f"{c.name}: political data may not be scored ({c.column})")
     return categories, crit
+
+
+# Columns the engine computes itself (they are not in the processed tables).
+DERIVED_COLUMNS = {"metro": {"real_take_home", "income_tax_rate"}, "zip": {"miles_to_office"}}
+
+
+def available_categories(crits: list[Criterion], tables: dict) -> set[str]:
+    """Categories with at least one criterion whose column exists in the loaded data."""
+    cols = {"metro": set(tables["metro"].columns) | DERIVED_COLUMNS["metro"],
+            "zip": (set(tables["zip"].columns) if "zip" in tables else set()) | DERIVED_COLUMNS["zip"]}
+    return {c.category for c in crits if c.column in cols[c.level]}

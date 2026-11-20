@@ -1,6 +1,6 @@
 # Big 4 Firm & City Recommender
 
-A web app that recommends a Big 4 firm, office, metro and neighborhood to soon-to-be McCombs MPA graduates, shown on a live US map. This repo holds the data pipeline; the Streamlit app comes next.
+A web app that recommends a Big 4 firm, office, metro and neighborhood to soon-to-be McCombs MPA graduates, shown on a live US map. This repo holds the data pipeline and the Streamlit app.
 
 ## Quick start
 
@@ -13,6 +13,14 @@ python ingest/run_all.py    # downloads, cleans and builds everything (~20-40 mi
 ```
 
 Re-running is cheap: downloaded files are cached in `data/raw/` and skipped.
+
+## Run the app
+
+```bash
+./run_app.sh          # then open http://localhost:8501  (pass a port to change it: ./run_app.sh 8080)
+```
+
+The first run creates `.venv` and installs what the app needs; later runs start right away. The app only reads `data/processed/` and `data/manual/`, so it needs no API keys and makes no network calls. If `zip_features` / `metro_features` haven't been built yet it shows demo data, and categories whose data isn't built (for example cafés and nightlife until `09_osm_amenities.py` has run) are hidden from the sliders and listed as "Not available yet". On Windows, run `streamlit run app/streamlit_app.py` from an activated venv with `pip install -r requirements.txt -r requirements-app.txt`.
 
 **Or run it on GitHub (no laptop needed):** add `CENSUS_API_KEY`, `BEA_API_KEY` and `FBI_API_KEY` (optionally `CONTACT_EMAIL`) as repository secrets (Settings → Secrets and variables → Actions), then go to **Actions → Run data pipeline → Run workflow**. Results are committed to `data/processed/`; files over ~95 MB are skipped from the commit but included in the run's `pipeline-output` artifact along with the full log.
 
