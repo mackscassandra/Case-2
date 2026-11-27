@@ -1,14 +1,15 @@
 name: Pull cafe and hobby data (OpenStreetMap)
 
-# Runs only the steps needed for places-by-ZIP (no API keys needed):
-#   01_geography.py   Census map boundaries (metros, counties, ZIPs)
-#   01b_offices.py    puts each Big 4 office in its metro
-#   09_osm_amenities.py  cafes, restaurants, bars, gyms, parks, trails, ... per ZIP
-# Results are committed to the branch the workflow ran on (never main, which is
-# protected), so they reach main through a normal pull request.
+# Places by ZIP for every ZIP within 15 miles of a Big 4 office (no API keys needed).
+#   prepare  -> Census boundaries (01) + offices placed in metros (01b), shared with the others
+#   download -> 4 machines in parallel, each pulling a quarter of the metros not yet done
+#               (09 --shard k/4). Metros already in the committed osm_points.parquet are
+#               skipped, so pushing the partial results and re-running resumes the pull.
+#   combine  -> merges whatever was downloaded (09 --combine) and commits to this branch
+# Results go to the branch the workflow ran on, never main (protected): merge via pull request.
 #
-# Starts automatically when you push to a branch named osm-*; or run it by hand:
-# Actions -> "Pull cafe and hobby data" -> Run workflow -> pick a branch (not main).
+# Starts automatically on push to a branch named osm-*; or Actions -> "Pull cafe and hobby
+# data" -> Run workflow -> pick a branch (not main).
 
 on:
   push:
@@ -21,62 +22,104 @@ permissions:
 
 concurrency:
   group: osm-${{ github.ref_name }}
-  cancel-in-progress: false
+  cancel-in-progress: true
+
+env:
+  OSM_RADIUS_MILES: "15"
+  PYTHONUNBUFFERED: "1"
 
 jobs:
-  amenities:
+  prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 30
     steps:
       - name: Refuse to run on main
         if: github.ref_name == 'main'
         run: |
           echo "::error::main is protected; run this on a branch (e.g. osm-amenities) and merge by pull request."
           exit 1
-
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - uses: actions/cache@v4
         with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      # Keeps Census shapes and finished metros between runs, so a re-run only
-      # fetches metros that failed last time.
-      - name: Restore downloaded raw files
-        uses: actions/cache@v4
-        with:
-          path: data/raw
-          key: osm-raw-${{ github.run_id }}
-          restore-keys: osm-raw-
-
+          path: data/raw/geo
+          key: census-geo-v1
       - name: Census map boundaries
         run: python ingest/01_geography.py
-
       - name: Place offices in metros
         run: python ingest/01b_offices.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prepared
+          path: |
+            data/processed/geo_*.parquet
+            data/processed/offices.*
+          retention-days: 7
 
-      - name: Cafes and hobbies by ZIP
-        env:
-          PYTHONUNBUFFERED: "1"
-        run: python ingest/09_osm_amenities.py
-
-      - name: Upload results
+  download:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with: {name: prepared, path: data/processed}
+      - name: Restore metros finished in earlier runs
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw/osm
+          key: osm-v3-r15-shard${{ matrix.shard }}-${{ github.run_id }}
+          restore-keys: osm-v3-r15-shard${{ matrix.shard }}-
+      - name: Download places (shard ${{ matrix.shard }} of 4)
+        run: python ingest/09_osm_amenities.py --shard ${{ matrix.shard }}/4
+      - name: Save finished metros (even if some failed)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw/osm
+          key: osm-v3-r15-shard${{ matrix.shard }}-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: osm-shard-${{ matrix.shard }}
+          path: data/raw/osm/*.parquet
+          retention-days: 30
+          if-no-files-found: ignore
+
+  combine:
+    needs: download
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with: {name: prepared, path: data/processed}
+      - uses: actions/download-artifact@v4
+        with: {pattern: osm-shard-*, path: data/raw/osm, merge-multiple: true}
+      - name: Combine into counts per ZIP
+        id: combine
+        continue-on-error: true
+        run: python ingest/09_osm_amenities.py --combine
+      - uses: actions/upload-artifact@v4
         with:
           name: osm-amenities
-          path: |
-            data/processed/osm_*
-            data/processed/offices.*
+          path: data/processed/osm_*
           retention-days: 30
           if-no-files-found: warn
-
       - name: Commit results to this branch
-        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -84,11 +127,15 @@ jobs:
             [ -f "$f" ] || continue
             if [ "$(stat -c %s "$f")" -le 95000000 ]; then git add "$f"; else echo "::warning::Skipping $f (too large); it is in the osm-amenities artifact."; fi
           done
-          git add data/manual/big4_offices.csv
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Add OpenStreetMap cafe and hobby counts by ZIP ($(date -u +%Y-%m-%d))"
+            git commit -m "OpenStreetMap cafe and hobby counts by ZIP, 15 mi of offices ($(date -u +%Y-%m-%d))"
             git pull --rebase origin "${GITHUB_REF_NAME}"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
+      - name: Report metros still missing
+        if: steps.combine.outcome == 'failure'
+        run: |
+          echo "::warning::Some metros failed to download; re-run this workflow to fill them in (finished ones are kept)."
+          exit 1
