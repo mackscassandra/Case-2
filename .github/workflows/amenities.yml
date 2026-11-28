@@ -16,9 +16,19 @@ on:
     branches: ["osm-*"]
     paths: ["ingest/09_osm_amenities.py", ".github/workflows/amenities.yml"]
   workflow_dispatch:
+    inputs:
+      combine_only:
+        description: "Skip downloading; only combine metros saved by an earlier run and commit"
+        type: boolean
+        default: false
+      from_run_id:
+        description: "Also reuse the metros downloaded by this earlier run (its run ID)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
+  actions: read   # to reuse artifacts from an earlier run (from_run_id)
 
 concurrency:
   group: osm-${{ github.ref_name }}
@@ -60,6 +70,7 @@ jobs:
 
   download:
     needs: prepare
+    if: ${{ !inputs.combine_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 340
     strategy:
@@ -96,7 +107,7 @@ jobs:
           if-no-files-found: ignore
 
   combine:
-    needs: download
+    needs: [prepare, download]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -107,8 +118,20 @@ jobs:
       - run: pip install -r requirements.txt
       - uses: actions/download-artifact@v4
         with: {name: prepared, path: data/processed}
-      - uses: actions/download-artifact@v4
+      - name: Metros downloaded by this run
+        continue-on-error: true
+        uses: actions/download-artifact@v4
         with: {pattern: osm-shard-*, path: data/raw/osm, merge-multiple: true}
+      - name: Metros downloaded by an earlier run
+        if: ${{ inputs.from_run_id != '' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: osm-shard-*
+          path: data/raw/osm
+          merge-multiple: true
+          run-id: ${{ inputs.from_run_id }}
+          github-token: ${{ github.token }}
       - name: Combine into counts per ZIP
         id: combine
         continue-on-error: true
@@ -131,7 +154,7 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "OpenStreetMap cafe and hobby counts by ZIP, 15 mi of offices ($(date -u +%Y-%m-%d))"
-            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - name: Report metros still missing
