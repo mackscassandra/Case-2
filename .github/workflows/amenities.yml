@@ -118,20 +118,29 @@ jobs:
       - run: pip install -r requirements.txt
       - uses: actions/download-artifact@v4
         with: {name: prepared, path: data/processed}
+      # Each shard's artifact holds the same file names for metros it resumed, so they are
+      # downloaded into separate folders (not merged in place, which corrupts files) and
+      # copied into data/raw/osm one copy per metro below.
       - name: Metros downloaded by this run
         continue-on-error: true
         uses: actions/download-artifact@v4
-        with: {pattern: osm-shard-*, path: data/raw/osm, merge-multiple: true}
+        with: {pattern: osm-shard-*, path: data/raw/osm_shards/this}
       - name: Metros downloaded by an earlier run
         if: ${{ inputs.from_run_id != '' }}
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: osm-shard-*
-          path: data/raw/osm
-          merge-multiple: true
+          path: data/raw/osm_shards/earlier
           run-id: ${{ inputs.from_run_id }}
           github-token: ${{ github.token }}
+      - name: Gather one copy of each metro
+        run: |
+          mkdir -p data/raw/osm
+          find data/raw/osm_shards -name '*.parquet' 2>/dev/null | while read -r f; do
+            cp -n "$f" "data/raw/osm/$(basename "$f")"
+          done
+          echo "metro files: $(ls data/raw/osm | wc -l)"
       - name: Combine into counts per ZIP
         id: combine
         continue-on-error: true
